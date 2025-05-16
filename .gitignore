@@ -177,7 +177,7 @@ cython_debug/
 .conda
 
 # for vscode
-# .vscode/
+.vscode/
 
 # from vue
 # Logs
