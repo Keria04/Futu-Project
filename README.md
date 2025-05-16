@@ -25,7 +25,7 @@ Futu-Project/
 ## 开始
 
 系统环境：
-python3、anaconda
+python3.12.0+、anaconda
 
 运行./scripts/start.sh
 

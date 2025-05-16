@@ -5,13 +5,13 @@ cd /d %~dp0\..
 REM 检查 environment.yml 是否存在
 if not exist environment.yml (
     echo Error: environment.yml not found in project root.
-    exit /b 1
+    pause
 )
 
 REM 检查 .conda 环境是否已存在
 if not exist .conda (
     echo Creating conda environment at .\.conda ...
-    call conda env create -f environment.yml -p .conda
+    call conda env create -f environment.yml -p .conda --python=3.12.0
 ) else (
     echo Conda environment .\.conda already exists.
 )
@@ -20,7 +20,7 @@ REM 激活当前目录下的 .conda 环境
 call conda activate "%cd%\.conda"
 if errorlevel 1 (
     echo Failed to activate conda environment.
-    exit /b 1
+    pause
 )
 echo Conda environment activated at .\.conda
 
@@ -31,7 +31,7 @@ if exist app.py (
     start "Flask Backend" cmd /k "conda activate %cd%\..\ .conda && python app.py"
 ) else (
     echo Error: app.py not found in backend directory.
-    exit /b 1
+    pause
 )
 
 REM 启动前端
@@ -41,7 +41,7 @@ if exist package.json (
     call npm install
     if errorlevel 1 (
         echo Failed to install npm packages.
-        exit /b 1
+        pause
     )
     echo Starting Vite frontend in new window...
     start "Vite Frontend" cmd /k "conda activate %cd%\..\ .conda && npm run dev"
