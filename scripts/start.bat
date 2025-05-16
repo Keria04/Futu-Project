@@ -11,7 +11,7 @@ if not exist environment.yml (
 REM 检查 .conda 环境是否已存在
 if not exist .conda (
     echo Creating conda environment at .\.conda ...
-    call conda env create -f environment.yml -p .conda --python=3.12.0
+    call conda env create -f environment.yml -p .conda python=3.12.0
 ) else (
     echo Conda environment .\.conda already exists.
 )

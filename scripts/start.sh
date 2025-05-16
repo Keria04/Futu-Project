@@ -22,7 +22,7 @@ fi
 # 检查 .conda 环境是否已存在
 if [ ! -d ".conda" ]; then
     echo "Creating conda environment at ./.conda ..."
-    conda env create -f environment.yml -p .conda --python=3.12.0
+    conda env create -f environment.yml -p .conda python=3.12.0
 else
     echo "Conda environment ./.conda already exists."
 fi
