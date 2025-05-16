@@ -37,6 +37,12 @@ if exist app.py (
 REM 启动前端
 cd ..\frontend
 if exist package.json (
+    echo Installing npm packages...
+    call npm install
+    if errorlevel 1 (
+        echo Failed to install npm packages.
+        exit /b 1
+    )
     echo Starting Vite frontend in new window...
     start "Vite Frontend" cmd /k "conda activate %cd%\..\ .conda && npm run dev"
 ) else (

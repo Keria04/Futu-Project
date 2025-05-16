@@ -50,6 +50,12 @@ fi
 # 启动前端
 cd ../frontend
 if [ -f "package.json" ]; then
+    # 检查 Node.js 和 npm 是否已安装
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "Failed to install npm packages." >&2
+        exit 1
+    fi
     echo "Starting Vite frontend in background..."
     npm run dev &
     FRONTEND_PID=$!
