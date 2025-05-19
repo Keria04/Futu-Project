@@ -210,3 +210,6 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# 数据集
+datasets/
