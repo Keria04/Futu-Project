@@ -88,7 +88,7 @@ class calaculate_embeded(object):
                 output = model(image_tensor)
                 all_outputs.append(output.cpu())
 
-        return torch.cat(all_outputs, dim=0).numpy().astype('float32')
+        return torch.cat(all_outputs, dim=0).cpu().numpy().astype('float32')
 
     def get_output_dim(self):
         """

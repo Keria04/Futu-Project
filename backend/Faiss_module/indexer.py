@@ -18,7 +18,7 @@ class FaissIndexer:
             index_path (str): 索引文件保存路径。
             nlist (int): 倒排列表数量（用于聚类中心数量）。
             index: FAISS 索引对象。
-        """
+    """
     def __init__(self, dim, index_path, nlist=50):
         self.dim = dim
         self.index_path = index_path
@@ -30,7 +30,7 @@ class FaissIndexer:
             参数:
                 features (np.ndarray): shape=(N, dim) 的图像特征向量。
                 ids (np.ndarray): shape=(N,) 的图像编号。
-         """
+        """
         quantizer = "IDMap,PCAR16,IVF{},SQ8".format(self.nlist)
         self.index = faiss.index_factory(self.dim, quantizer, faiss.METRIC_L2)
         if not self.index.is_trained:
@@ -46,14 +46,14 @@ class FaissIndexer:
             raise FileNotFoundError(f"No FAISS index at {self.index_path}")
     def search(self, query: np.ndarray, k: int = 5):
         """
-               对查询向量执行近邻搜索。
+            对查询向量执行近邻搜索。
                参数:
                    query (np.ndarray): shape=(1, dim) 的查询向量。
                    k (int): 返回最近的 k 个相似项。
                返回:
                    distances (np.ndarray): 距离值。
                    ids (np.ndarray): 匹配的图像编号。
-               """
+        """
         if self.index is None:
             raise ValueError("Index not loaded")
         return self.index.search(query, k)
