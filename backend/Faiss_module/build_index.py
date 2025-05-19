@@ -6,9 +6,10 @@ import numpy as np
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from config import faiss_config as config
-from indexer import FaissIndexer
-def main():
+import config
+from Faiss_module.indexer import FaissIndexer
+
+def build_index():
     # 1. 加载特征向量
     if not os.path.exists(config.FEATURE_PATH):
         raise FileNotFoundError(f"特征文件 {config.FEATURE_PATH} 不存在。")

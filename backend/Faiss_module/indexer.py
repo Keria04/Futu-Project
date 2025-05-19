@@ -31,7 +31,7 @@ class FaissIndexer:
                 features (np.ndarray): shape=(N, dim) 的图像特征向量。
                 ids (np.ndarray): shape=(N,) 的图像编号。
         """
-        quantizer = "IDMap,PCAR16,IVF{},SQ8".format(self.nlist)
+        quantizer = "IDMap,IVF{},SQ8".format(self.nlist)  # 移除PCAR16
         self.index = faiss.index_factory(self.dim, quantizer, faiss.METRIC_L2)
         if not self.index.is_trained:
             self.index.train(features)

@@ -3,8 +3,8 @@ import sys
 import numpy as np
 # 添加项目根路径，便于导入 config 和模块
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from config import faiss_config
-from indexer import FaissIndexer
+import config
+from Faiss_module.indexer import FaissIndexer
 def search_index(query_feature: np.ndarray, top_k=5):
     """
     使用 FAISS 对给定特征向量进行搜索，返回 top_k 个最相似图像的编号（ID）。

@@ -1,12 +1,16 @@
 import os
+import sys
 import torch
 from torchvision import transforms, models
 from torch.utils.data import DataLoader
 import torch.nn as nn
 from PIL import Image
 from tqdm import tqdm
-from backend import config
-from backend.config import batchsize
+
+# 添加 backend 目录到 sys.path，便于直接 import config
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+import config
 
 
 class calaculate_embeded(object):
@@ -65,7 +69,6 @@ class calaculate_embeded(object):
 
     def calculate_batch(self, image_list):
         """
-        未完成
         外部接口：批量计算图片特征向量
         """
         model = self.model.to(self.device)
