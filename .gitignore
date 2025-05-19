@@ -212,4 +212,4 @@ coverage
 *.tsbuildinfo
 
 # 数据集
-datasets/
+datasets/*
