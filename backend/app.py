@@ -4,7 +4,7 @@ import faiss
 from tkinter import Tk, filedialog, Canvas, NW, Button, Label
 from PIL import Image, ImageTk
 
-from models.calculate_embeded import calaculate_embeded
+from Model_module.calculate_embeded import calaculate_embeded
 
 # 1. 初始化模型
 embedder = calaculate_embeded()
