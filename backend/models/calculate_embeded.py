@@ -6,6 +6,8 @@ import torch.nn as nn
 from PIL import Image
 from tqdm import tqdm
 from backend import config
+from backend.config import batchsize
+
 
 class calaculate_embeded(object):
     def __init__(self):
@@ -18,6 +20,7 @@ class calaculate_embeded(object):
         self.input_size = config.input_size
         self.normalize_mean = config.normalize_mean
         self.normalize_std = config.normalize_std
+        self.batchsize = config.batchsize
 
         # 动态加载模型
         self.model = self._load_model(self.model_type, self.pretrain)
@@ -67,18 +70,25 @@ class calaculate_embeded(object):
         """
         model = self.model.to(self.device)
         model.eval()
+        batchsize = self.batchsize
 
-        processed_images = []
-        for img in tqdm(image_list, desc="Processing images"):
-            img = img.convert('RGB')
-            img = self.data_transforms(img)
-            processed_images.append(img)
+        all_outputs = []
 
-        image_tensor = torch.stack(processed_images).to(self.device)
+        for i in tqdm(range(0, len(image_list), batchsize), desc="Processing batches"):
+            batch_img = image_list[i:i + batchsize]
+            processed_images = []
+            for img in batch_img:
+                img = img.convert('RGB')
+                img = self.data_transforms(img)
+                processed_images.append(img)
 
-        with torch.no_grad():
-            output = model(image_tensor)
-        return output.cpu().numpy().astype('float32')
+            image_tensor = torch.stack(processed_images).to(self.device)
+
+            with torch.no_grad():
+                output = model(image_tensor)
+                all_outputs.append(output.cpu())
+
+        return torch.cat(all_outputs, dim=0).cpu().numpy().astype('float32')
 
     def get_output_dim(self):
         """
