@@ -7,17 +7,17 @@
 
 ```
 Futu-Project/
-├── README.md           # 项目说明文档
-├── /config						#  配置文件
-├── /backend						# 后端实现代码
-│   ├── /databases			# 数据库实现与储存
-│   ├── /models					# 面向对象代码
-│   ├── /routes					# 后端路由代码
-│   ├── /utils					# 微函数代码
-├── /fronted						# 前端实现代码
-│   ├── /public					# vue资源库
-│   ├── /src						# 前端代码
-├── /scripts						# 启动脚本
+├── README.md         # 项目说明文档
+├── config/           # 配置文件
+├── backend/          # 后端实现代码
+│   ├── databases/    # 数据库实现与储存
+│   ├── models/       # 面向对象代码
+│   ├── routes/       # 后端路由代码
+│   ├── utils/        # 微函数代码
+├── fronted/          # 前端实现代码
+│   ├── public/       # vue资源库
+│   ├── src/          # 前端代码
+├── scripts/          # 启动脚本
 ```
 
 
