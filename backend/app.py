@@ -1,24 +1,29 @@
 import os
-from modelscope.pipelines import pipeline
-from modelscope.utils.constant import Tasks
 import numpy as np
 import faiss
 from tkinter import Tk, filedialog, Canvas, NW, Button, Label
 from PIL import Image, ImageTk
 
+from models.calculate_embeded import calaculate_embeded
+
 # 1. 初始化模型
-product_embedding = pipeline(
-    Tasks.product_retrieval_embedding,
-    model='damo/cv_resnet50_product-bag-embedding-models'
-)
+embedder = calaculate_embeded()
+dimension = embedder.get_dimension()
 
 # 2. 嵌入生成函数
-def generate_embeddings(img: str):
-    result = product_embedding(img)
-    return np.array(result['img_embedding'], dtype='float32').reshape(1, -1)
+def generate_embeddings(img):
+    """
+    img: 路径(str) 或 PIL.Image
+    返回: (1, dim) 的 float32 numpy 数组
+    """
+    if isinstance(img, str):
+        image = Image.open(img)
+    else:
+        image = img
+    vec = embedder.calculate(image)
+    return vec.reshape(1, -1)
 
 # 3. 初始化FAISS索引和ID映射
-dimension = 512
 index = faiss.IndexFlatL2(dimension)
 id_map = {}
 
@@ -96,15 +101,8 @@ def select_query_image():
 
 def search_image(query_img, topk=3):
     """支持传入PIL图片对象或图片路径"""
-    if isinstance(query_img, str):
-        query_embedding = generate_embeddings(query_img)
-    else:
-        # 临时保存裁剪图片再提特征
-        tmp_path = os.path.join(base_dir, 'tmp_query_crop.jpg')
-        query_img.save(tmp_path)
-        query_embedding = generate_embeddings(tmp_path)
-        os.remove(tmp_path)
-    D, I = index.search(query_embedding, k=topk)
+    embedding = generate_embeddings(query_img)
+    D, I = index.search(embedding, k=topk)
     results = []
     for idx in I[0]:
         results.append(id_map.get(idx, 'Unknown'))
