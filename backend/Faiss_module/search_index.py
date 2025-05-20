@@ -4,7 +4,7 @@ import numpy as np
 # 添加项目根路径，便于导入 config 和模块
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from config import config
-from Faiss_module.indexer import FaissIndexer
+from faiss_module.indexer import FaissIndexer
 
 def search_index(query_feature: np.ndarray, top_k=5):
     """
