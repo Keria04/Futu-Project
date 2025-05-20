@@ -23,3 +23,6 @@ N_LIST = 5
 
 # 上传图片的位置
 UPLOAD_FOLDER = os.path.join('data', 'uploads')
+
+# 是否允许远程计算
+DISTRIBUTED_AVAILABLE = True
