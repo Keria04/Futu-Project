@@ -4,3 +4,5 @@ torch
 torchvision
 tqdm
 flask
+celery
+redis

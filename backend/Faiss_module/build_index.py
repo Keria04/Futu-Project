@@ -30,5 +30,3 @@ def build_index():
     # 4. 保存索引
     indexer.save_index()
     print(f"索引已保存至 {config.INDEX_PATH}")
-if __name__ == "__main__":
-    main()

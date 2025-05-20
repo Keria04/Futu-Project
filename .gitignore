@@ -216,3 +216,6 @@ datasets/*
 
 # 计算后数据
 data/*
+
+# 忽略更多虚拟环境
+.worker
