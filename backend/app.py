@@ -1,17 +1,18 @@
 import os
 import numpy as np
 from PIL import Image
-from Model_module.calculate_embeded import calaculate_embeded
-from Faiss_module.indexer import FaissIndexer
-from Faiss_module.build_index import build_index
-from Faiss_module.search_index import search_index
+import time
+from model_module.calculate_embeded import calaculate_embeded
+from faiss_module.build_index import build_index
+from faiss_module.search_index import search_index
+from config import config
 
 # 配置
 DATASET_DIR = os.path.join(os.path.dirname(__file__), '..', 'datasets')
-INDEX_PATH = os.path.join(DATASET_DIR, 'test.index')
+INDEX_PATH = config.INDEX_PATH
 QUERY_IMG = os.path.join(DATASET_DIR, 'query.jpg')
-FEATURES_PATH = os.path.join(os.path.dirname(__file__), 'features.npy')
-IDS_PATH = os.path.join(os.path.dirname(__file__), 'ids.npy')
+FEATURES_PATH = config.FEATURE_PATH
+IDS_PATH = config.ID_PATH
 
 # 1. 提取所有图片特征（除query.jpg）
 img_exts = ('.jpg', '.jpeg', '.png', '.bmp')
@@ -22,6 +23,8 @@ img_paths = [os.path.join(DATASET_DIR, f) for f in img_files]
 embedder = calaculate_embeded()
 features = []
 ids = []
+
+start_time = time.time()  # 计时开始
 for idx, path in enumerate(img_paths):
     img = Image.open(path)
     feat = embedder.calculate(img)
@@ -29,6 +32,9 @@ for idx, path in enumerate(img_paths):
     ids.append(idx)
 features = np.stack(features).astype('float32')
 ids = np.array(ids, dtype='int64')
+end_time = time.time()  # 计时结束
+
+print(f"特征提取与保存耗时: {end_time - start_time:.2f} 秒")
 
 # 保存特征和ID到 app.py 同层
 np.save(FEATURES_PATH, features)
@@ -42,9 +48,9 @@ build_index()
 query_img = Image.open(QUERY_IMG)
 query_feat = embedder.calculate(query_img).reshape(1, -1)
 
-D, I = search_index(query_feat, top_k=5)
+D= search_index(query_feat, top_k=5)
 
 # 4. 输出结果
 print("查图结果：")
-for rank, idx in enumerate(I[0]):
-    print(f"Top{rank+1}: {img_files[idx]} (距离: {D[0][rank]:.4f})")
+for i in D:
+    print(f"相似图像编号：{i}")

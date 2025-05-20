@@ -71,3 +71,6 @@ Set-ExecutionPolicy RemoteSigned -Scope Process
 
 *如果是* *.bat* *文件，则使用* *start.bat* *运行。*
 
+## 调试后端
+
+必须从项目根目录下运行

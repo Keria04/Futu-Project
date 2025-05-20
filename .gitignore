@@ -213,3 +213,6 @@ coverage
 
 # 数据集
 datasets/*
+
+# 计算后数据
+data/*

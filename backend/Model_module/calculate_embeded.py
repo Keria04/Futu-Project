@@ -6,11 +6,9 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 from PIL import Image
 from tqdm import tqdm
-
-# 添加 backend 目录到 sys.path，便于直接 import config
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-import config
+# 添加项目根路径，便于导入 config 和模块
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from config import config
 
 
 class calaculate_embeded(object):
