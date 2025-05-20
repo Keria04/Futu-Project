@@ -4,9 +4,9 @@ from PIL import Image
 import time
 from flask import Flask, request, render_template_string, redirect, url_for
 from werkzeug.utils import secure_filename
-from model_module.calculate_embeded import calaculate_embeded
-from faiss_module.build_index import build_index
-from faiss_module.search_index import search_index
+from Model_module.calculate_embeded import calaculate_embeded
+from Faiss_module.build_index import build_index
+from Faiss_module.search_index import search_index
 from config import config
 
 app = Flask(__name__)
