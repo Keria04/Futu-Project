@@ -20,3 +20,6 @@ INDEX_PATH = os.path.join("data", "image.index")
 VECTOR_DIM = 2048
 # IVF 索引中的聚类数量（影响召回速度与精度）
 N_LIST = 5
+
+# 上传图片的位置
+UPLOAD_FOLDER = os.path.join('data', 'uploads')
