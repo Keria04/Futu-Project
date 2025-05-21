@@ -57,3 +57,20 @@ class FaissIndexer:
         if self.index is None:
             raise ValueError("Index not loaded")
         return self.index.search(query, k)
+
+    def update_index(self, new_features: np.ndarray, new_ids: np.ndarray):
+        """
+        更新索引：对已有 ID 执行删除再添加新向量；对新 ID 执行添加操作。
+        参数:
+            new_features (np.ndarray): shape=(M, dim) 的新特征向量。
+            new_ids (np.ndarray): shape=(M,) 的图像 ID。
+        """
+        if self.index is None:
+            raise ValueError("Index not loaded")
+
+        # 先移除旧的 ID（如果存在）
+        id_selector = faiss.IDSelectorBatch(new_ids.size, faiss.swig_ptr(new_ids))
+        self.index.remove_ids(id_selector)
+
+        # 添加新向量
+        self.index.add_with_ids(new_features, new_ids)
