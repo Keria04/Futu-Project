@@ -16,6 +16,7 @@ export default defineConfig({
     },
   },
   server: {
+    port: 19197,
     proxy: {
       '/api': 'http://localhost:19198',
       '/show_image': 'http://localhost:19198'

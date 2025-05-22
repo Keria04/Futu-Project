@@ -1,54 +1,30 @@
 @echo off
-REM 切换到项目根目录
-cd /d %~dp0\..
+setlocal enabledelayedexpansion
 
-REM 检查 environment.yml 是否存在
-if not exist environment.yml (
-    echo Error: environment.yml not found in project root.
-    pause
-)
+REM 检查端口是否被占用并询问是否结束进程
+set PORTS=19197 19198
+set NAMES=前端 后端
+set IDX=0
 
-REM 检查 .conda 环境是否已存在
-if not exist .conda (
-    echo Creating conda environment at .\.conda ...
-    call conda env create -f environment.yml -p .conda python=3.12.0
-) else (
-    echo Conda environment .\.conda already exists.
-)
-
-REM 激活当前目录下的 .conda 环境
-call conda activate "%cd%\.conda"
-if errorlevel 1 (
-    echo Failed to activate conda environment.
-    pause
-)
-echo Conda environment activated at .\.conda
-
-REM 启动后端
-cd backend
-if exist app.py (
-    echo Starting Flask application in new window...
-    start "Flask Backend" cmd /k "conda activate %cd%\..\ .conda && python app.py"
-) else (
-    echo Error: app.py not found in backend directory.
-    pause
+for %%P in (%PORTS%) do (
+    set /a IDX+=1
+    for /f "tokens=%IDX%" %%N in ("%NAMES%") do set NAME=%%N
+    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%%P ^| findstr LISTENING') do (
+        set PID=%%a
+        echo !NAME! 端口 %%P 已被占用，进程号: !PID!
+        set /p KILL=是否结束该进程？[y/N] 
+        if /i "!KILL!"=="y" (
+            taskkill /F /PID !PID!
+            echo 已结束进程 !PID!
+        ) else (
+            echo 请手动释放端口后再启动。
+            exit /b 1
+        )
+    )
 )
 
 REM 启动前端
-cd ..\frontend
-if exist package.json (
-    echo Installing npm packages...
-    call npm install
-    if errorlevel 1 (
-        echo Failed to install npm packages.
-        pause
-    )
-    echo Starting Vite frontend in new window...
-    start "Vite Frontend" cmd /k "conda activate %cd%\..\ .conda && npm run dev"
-) else (
-    echo Error: package.json not found in frontend directory.
-    exit /b 1
-)
+start cmd /k "cd /d %~dp0..\frontend && npm install && npm run dev"
 
-REM 启动完成，主脚本直接退出
-echo All services started. You may close this window.
+REM 启动后端
+start cmd /k "cd /d %~dp0.. && python backend/app.py"
