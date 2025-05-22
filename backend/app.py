@@ -72,6 +72,9 @@ def prepare_index(distributed=False):
     np.save(FEATURES_PATH, features)
     np.save(IDS_PATH, ids)
     print(f"特征已保存到 {FEATURES_PATH}，ID已保存到 {IDS_PATH}")
+    
+    # 使用build_index构建索引
+    build_index()
     print("索引已构建完成。")
     print("数据集特征与索引构建完成，可以进行图片检索。")
     return True

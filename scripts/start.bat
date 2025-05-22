@@ -27,4 +27,4 @@ REM 启动前端
 start cmd /k "cd /d %~dp0..\frontend && npm install && npm run dev"
 
 REM 启动后端
-start cmd /k "cd /d %~dp0.. && python backend/app.py"
+start cmd /k "cd /d %~dp0.. && set KMP_DUPLICATE_LIB_OK=TRUE && python backend/app.py"
