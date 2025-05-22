@@ -29,7 +29,7 @@ Futu-Project/
 系统环境：
 python3.12.0+、anaconda
 
-运行./scripts/start.sh
+激活虚拟环境，并运行./scripts/start.sh
 
 **Linux & macOS**
 
@@ -70,9 +70,3 @@ Set-ExecutionPolicy RemoteSigned -Scope Process
 ```
 .\start.bat
 ```
-
-*如果是* *.bat* *文件，则使用* *start.bat* *运行。*
-
-## 调试后端
-
-必须从项目根目录下运行
