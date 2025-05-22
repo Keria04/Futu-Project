@@ -36,3 +36,5 @@ DATASET_DIR = os.path.join(BASE_DIR, 'datasets')
 
 # 是否允许远程计算
 DISTRIBUTED_AVAILABLE = True
+# 相似度转换SIGMA超参数，越大缓冲性越强
+SIMILARITY_SIGMA=10.0
