@@ -1,8 +1,14 @@
 import os
+# 检查并设置工作目录为 app.py 的上一级目录
+current_dir = os.getcwd()
+target_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if current_dir != target_dir:
+    os.chdir(target_dir)
+
 import base64
 import sys
 import numpy as np
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask
 from werkzeug.utils import secure_filename
 # 添加项目根路径，便于导入 config 和模块
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -79,60 +85,16 @@ def prepare_index(distributed=False):
     print("数据集特征与索引构建完成，可以进行图片检索。")
     return True
 
-@app.route('/', methods=['GET'])
-def index():
-    return jsonify({"msg": "请使用前端页面进行操作。"})
+# 注册蓝图
+from route.index import index_bp
+from route.build_index import build_index_bp
+from route.search import search_bp
+from route.image import image_bp
 
-@app.route('/api/build_index', methods=['POST'])
-def api_build_index():
-    prepare_index(distributed=False)
-    return jsonify({"msg": "本地数据集特征与索引已构建完成，可以进行图片检索。"})
-
-@app.route('/api/build_index_distributed', methods=['POST'])
-def api_build_index_distributed():
-    if DISTRIBUTED_AVAILABLE:
-        ok = prepare_index(distributed=True)
-        if ok:
-            return jsonify({"msg": "远程数据集特征与索引已构建完成，可以进行图片检索。"})
-        else:
-            return jsonify({"msg": "远程构建失败，已跳过。"}), 500
-    else:
-        return jsonify({"msg": "远程worker不可用，无法远程构建。"}), 400
-
-@app.route('/api/search', methods=['POST'])
-def api_search():
-    img_exts = ('.jpg', '.jpeg', '.png', '.bmp')
-    img_files = [f for f in os.listdir(DATASET_DIR) if f.lower().endswith(img_exts) and f != 'query.jpg']
-    img_files.sort()
-    file = request.files.get('query_img')
-    if not file or not file.filename:
-        return jsonify({"msg": "未上传图片"}), 400
-    filename = secure_filename(file.filename)
-    save_path = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(save_path)
-    try:
-        x = int(request.form.get('crop_x', 0))
-        y = int(request.form.get('crop_y', 0))
-        w = int(request.form.get('crop_w', 0))
-        h = int(request.form.get('crop_h', 0))
-    except Exception:
-        x, y, w, h = 0, 0, 0, 0
-    img = Image.open(save_path)
-    if w > 0 and h > 0:
-        img = img.crop((x, y, x + w, y + h))
-    embedder = feature_extractor()
-    query_feat = embedder.calculate(img).reshape(1, -1)
-    indices = search_index(query_feat, top_k=5)
-    results = []
-    for idx in indices:
-        fname = img_files[idx]
-        img_url = '/show_image/' + fname
-        results.append({"fname": fname, "idx": idx, "img_url": img_url})
-    return jsonify({"results": results})
-
-@app.route('/show_image/<filename>')
-def show_image(filename):
-    return send_from_directory(DATASET_DIR, filename)
+app.register_blueprint(index_bp)
+app.register_blueprint(build_index_bp)
+app.register_blueprint(search_bp)
+app.register_blueprint(image_bp)
 
 if __name__ == '__main__':
     app.run(debug=True, port=19198)

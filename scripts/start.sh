@@ -33,8 +33,7 @@ check_and_kill_port 19198 "后端"
 # 启动后端
 (
   cd "$(dirname "$0")/.."
-  pip install -r requirement.txt
-  conda install -c conda-forge faiss-cpu
+  export KMP_DUPLICATE_LIB_OK=TRUE
   python3 backend/app.py
 ) &
 
