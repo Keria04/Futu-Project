@@ -22,8 +22,9 @@ VECTOR_DIM = 2048
 N_LIST = 5
 
 #用于增加新图片的特征文件路径
-NEW_FEATURE_PATH=
-NEW_ID_PATH=
+NEW_FEATURE_PATH = ""
+NEW_ID_PATH = ""
+
 # 上传图片的位置
 UPLOAD_FOLDER = os.path.join('data', 'uploads')
 
