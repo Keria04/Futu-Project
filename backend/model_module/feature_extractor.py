@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 from config import config
 
 
-class calaculate_embeded(object):
+class feature_extractor(object):
     def __init__(self):
         """
         外部接口：初始化，直接使用 config.py 中的配置变量

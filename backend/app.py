@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from config import config
 from PIL import Image
 
-from model_module.calculate_embeded import calaculate_embeded
+from model_module.feature_extractor import feature_extractor
 from faiss_module.build_index import build_index
 from faiss_module.search_index import search_index
 from worker import generate_embeddings_task
@@ -141,7 +141,7 @@ def prepare_index(distributed=False):
         print("已采用远程特征提取。")
     else:
         print("采用本地特征提取构建索引...")
-        embedder = calaculate_embeded()
+        embedder = feature_extractor()
         for idx, fname in enumerate(img_files):
             path = os.path.join(DATASET_DIR, fname)
             img = Image.open(path)
@@ -196,7 +196,7 @@ def upload_and_search():
                 img = Image.open(save_path)
                 if w > 0 and h > 0:
                     img = img.crop((x, y, x + w, y + h))
-                embedder = calaculate_embeded()
+                embedder = feature_extractor()
                 query_feat = embedder.calculate(img).reshape(1, -1)
                 indices = search_index(query_feat, top_k=5)
                 # 生成图片URL

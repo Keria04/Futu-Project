@@ -2,7 +2,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 from celery import Celery
-from model_module.calculate_embeded import calaculate_embeded
+from model_module.feature_extractor import feature_extractor
 
 celery_app = Celery(
     'tasks',
@@ -14,6 +14,6 @@ celery_app = Celery(
 def generate_embeddings_task(img_data_b64):
     img_bytes = base64.b64decode(img_data_b64)
     img = Image.open(BytesIO(img_bytes))
-    embedder = calaculate_embeded()
+    embedder = feature_extractor()
     feat = embedder.calculate(img)
     return feat.tolist()
