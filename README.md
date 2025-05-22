@@ -1,5 +1,5 @@
 # 浮图Project
-2025年-大二-软件开发实训课程项目 组长：蔡怡乐 组员：香安涛 郑达均 罗伟 何家齐 
+2025年-大二-软件开发实训课程项目 组长：蔡怡乐 组员：香安涛 郑达均  何家齐 
 
 
 
@@ -11,12 +11,14 @@ Futu-Project/
 ├── config/           # 配置文件
 ├── backend/          # 后端实现代码
 │   ├── databases/    # 数据库实现与储存
-│   ├── models/       # 面向对象代码
+│   ├── model_module/ # Resnet 模块
+│   ├── faiss_module  # Faiss模块
 │   ├── routes/       # 后端路由代码
 │   ├── utils/        # 微函数代码
 ├── fronted/          # 前端实现代码
 │   ├── public/       # vue资源库
 │   ├── src/          # 前端代码
+├── docs              # 相关文档
 ├── scripts/          # 启动脚本
 ```
 
