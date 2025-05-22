@@ -34,10 +34,11 @@ def api_search():
         img = img.crop((x, y, x + w, y + h))
     embedder = feature_extractor()
     query_feat = embedder.calculate(img).reshape(1, -1)
-    indices = search_index(query_feat, top_k=5)
+    indices, similarities = search_index(query_feat, top_k=5)
+    # print(f"检索到的索引: {indices}, 相似度: {similarities}")
     results = []
-    for idx in indices:
+    for idx, sim in zip(indices, similarities):
         fname = img_files[idx]
         img_url = '/show_image/' + fname
-        results.append({"fname": fname, "idx": idx, "img_url": img_url})
+        results.append({"fname": fname, "idx": idx, "img_url": img_url, "similarity": sim})
     return jsonify({"results": results})

@@ -148,7 +148,12 @@ async function submitSearch() {
       <ol>
         <li v-for="item in results" :key="item.idx" class="result-item">
           <img :src="item.img_url" class="result-img" />
-          <div class="result-info">{{ item.fname }} (编号: {{ item.idx }})</div>
+          <div class="result-info">
+            {{ item.fname }} (编号: {{ item.idx }})
+            <span v-if="item.similarity !== undefined">
+              | 相似度: {{ item.similarity.toFixed(2) }}%
+            </span>
+          </div>
         </li>
       </ol>
     </div>
@@ -158,22 +163,23 @@ async function submitSearch() {
 <style scoped>
 .upload-container {
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 24px 0 rgba(60,60,60,0.08);
+  border-radius: 18px;
+  box-shadow: 0 6px 32px 0 rgba(60,60,60,0.10);
   padding: 2.5rem 2rem 2rem 2rem;
-  width: 100%;
-  max-width: 600px;
-  margin: 2rem auto;
+  width: 96vw;
+  max-width: 75vw;
+  min-width: 320px;
+  margin: 3rem auto 2rem auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   box-sizing: border-box;
 }
 .title {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #42b983;
-  margin-bottom: 1.2rem;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #2d8cf0;
+  margin-bottom: 1.5rem;
   letter-spacing: 2px;
 }
 .upload-panel {
@@ -183,79 +189,102 @@ async function submitSearch() {
   align-items: center;
 }
 .file-input {
-  margin-bottom: 1rem;
+  margin-bottom: 1.2rem;
 }
 .btn-group {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.7rem;
+  margin-bottom: 1.2rem;
 }
 .btn {
-  background: #42b983;
+  background: linear-gradient(90deg, #2d8cf0 0%, #42b983 100%);
   color: #fff;
   border: none;
-  border-radius: 6px;
-  padding: 0.5rem 1.2rem;
-  font-size: 1rem;
+  border-radius: 8px;
+  padding: 0.55rem 1.4rem;
+  font-size: 1.05rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px 0 rgba(60,60,60,0.06);
 }
 .btn:hover:enabled {
-  background: #369870;
+  background: linear-gradient(90deg, #42b983 0%, #2d8cf0 100%);
 }
 .main-btn {
-  margin-top: 1.2rem;
+  margin-top: 1.5rem;
   width: 100%;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: bold;
+  letter-spacing: 1px;
 }
 .btn:disabled {
   background: #b5e2d4;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 .msg {
-  color: #369870;
-  margin-bottom: 0.8rem;
-  font-size: 1rem;
+  color: #2d8cf0;
+  margin-bottom: 1rem;
+  font-size: 1.05rem;
   min-height: 1.2em;
 }
 .preview-canvas {
-  margin: 0.5rem 0 0.5rem 0;
-  max-width: 320px;
-  max-height: 320px;
-  border: 1.5px solid #e0e0e0;
-  border-radius: 8px;
-  background: #fafafa;
+  margin: 0.7rem 0 0.7rem 0;
+  width: 100%;
+  max-width: 340px;
+  max-height: 340px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: #f8fafc;
   box-shadow: 0 2px 8px 0 rgba(60,60,60,0.04);
+  display: block;
 }
 .result-panel {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
   width: 100%;
 }
 .result-panel h2 {
-  font-size: 1.2rem;
+  font-size: 1.18rem;
   color: #333;
-  margin-bottom: 0.8rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
 }
 .result-item {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.1rem;
   background: #f6fefb;
-  border-radius: 8px;
-  padding: 0.5rem;
-  box-shadow: 0 1px 4px 0 rgba(60,60,60,0.03);
+  border-radius: 10px;
+  padding: 0.7rem;
+  box-shadow: 0 1px 4px 0 rgba(60,60,60,0.04);
+  transition: box-shadow 0.2s;
+}
+.result-item:hover {
+  box-shadow: 0 4px 16px 0 rgba(60,60,60,0.10);
 }
 .result-img {
-  max-width: 80px;
-  max-height: 80px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-right: 1rem;
+  max-width: 90px;
+  max-height: 90px;
+  border: 1.5px solid #b5e2d4;
+  border-radius: 6px;
+  margin-right: 1.2rem;
   background: #fff;
 }
 .result-info {
-  font-size: 1rem;
+  font-size: 1.08rem;
   color: #222;
+  word-break: break-all;
+}
+@media (max-width: 500px) {
+  .upload-container {
+    max-width: 98vw;
+    min-width: 0;
+    padding: 1.2rem 0.5rem 1rem 0.5rem;
+  }
+  .preview-canvas {
+    max-width: 98vw;
+    min-width: 0;
+  }
 }
 </style>

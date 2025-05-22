@@ -5,6 +5,7 @@ import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from config import config
 from faiss_module.indexer import FaissIndexer
+from faiss_module.faiss_utils.similarity_utils import distance_to_similarity_percent
 
 def search_index(query_feature: np.ndarray, top_k=5):
     """
@@ -29,7 +30,8 @@ def search_index(query_feature: np.ndarray, top_k=5):
     )
     indexer.load_index()
     distances, indices = indexer.search(query_feature.astype('float32'), top_k)
-    return indices[0].tolist()
+    similarities = distance_to_similarity_percent(distances[0])
+    return indices[0].tolist(), similarities.tolist()
 
 # 示例用法
 if __name__ == "__main__":
