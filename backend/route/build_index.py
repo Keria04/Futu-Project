@@ -83,6 +83,8 @@ def prepare_index(distributed=False):
     ids = np.array(ids, dtype='int64')
     np.save(FEATURES_PATH, features)
     np.save(IDS_PATH, ids)
+    print("ids内容:", ids)
+    print("features内容:", features)
     print(f"特征已保存到 {FEATURES_PATH}，ID已保存到 {IDS_PATH}")
     
     # 使用build_index构建索引
