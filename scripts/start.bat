@@ -28,3 +28,6 @@ start cmd /k "cd /d %~dp0..\frontend && npm install && npm run dev"
 
 REM 启动后端
 start cmd /k "cd /d %~dp0.. && set KMP_DUPLICATE_LIB_OK=TRUE && python backend/app.py"
+
+REM 打开默认浏览器访问前端地址
+start http://localhost:19197

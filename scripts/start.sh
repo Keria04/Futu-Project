@@ -37,4 +37,13 @@ check_and_kill_port 19198 "后端"
   python3 backend/app.py
 ) &
 
+# 打开默认浏览器访问前端地址
+if command -v xdg-open >/dev/null 2>&1; then
+  xdg-open http://localhost:19197
+elif command -v open >/dev/null 2>&1; then
+  open http://localhost:19197
+else
+  echo "请手动打开浏览器访问 http://localhost:19197"
+fi
+
 wait

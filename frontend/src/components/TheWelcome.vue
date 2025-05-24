@@ -1,5 +1,6 @@
 <script setup>
 import { ref, nextTick } from 'vue'
+import axios from 'axios' // 新增：引入axios
 
 const queryImg = ref(null)
 const previewUrl = ref('')
@@ -99,9 +100,12 @@ function onMouseMove(ev) {
 async function buildIndex(distributed = false) {
   buildMsg.value = '正在构建索引...'
   const url = distributed ? '/api/build_index_distributed' : '/api/build_index'
-  const resp = await fetch(url, { method: 'POST' })
-  const data = await resp.json()
-  buildMsg.value = data.msg
+  try {
+    const resp = await axios.post(url)
+    buildMsg.value = resp.data.msg
+  } catch (e) {
+    buildMsg.value = '构建索引失败'
+  }
 }
 
 async function submitSearch() {
@@ -115,9 +119,14 @@ async function submitSearch() {
   form.append('crop_y', crop.value.y)
   form.append('crop_w', crop.value.w)
   form.append('crop_h', crop.value.h)
-  const resp = await fetch('/api/search', { method: 'POST', body: form })
-  const data = await resp.json()
-  results.value = data.results || []
+  try {
+    const resp = await axios.post('/api/search', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    results.value = resp.data.results || []
+  } catch (e) {
+    buildMsg.value = '检索失败'
+  }
   uploading.value = false
 }
 </script>
