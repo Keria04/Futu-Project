@@ -7,19 +7,55 @@
 
 ```
 Futu-Project/
-├── README.md         # 项目说明文档
-├── config/           # 配置文件
-├── backend/          # 后端实现代码
-│   ├── databases/    # 数据库实现与储存
-│   ├── model_module/ # Resnet 模块
-│   ├── faiss_module  # Faiss模块
-│   ├── routes/       # 后端路由代码
-│   ├── utils/        # 微函数代码
-├── fronted/          # 前端实现代码
-│   ├── public/       # vue资源库
-│   ├── src/          # 前端代码
-├── docs              # 相关文档
-├── scripts/          # 启动脚本
+├── README.md                  # 项目说明文档
+├── LICENSE                    # 开源许可证
+├── config/                    # 配置文件（如 config.py 和 defaultconfig.json）
+│   └── config.py              # 配置项定义
+├── backend/                   # 后端服务代码
+│   ├── app.py                 # 后端主程序入口
+│   ├── database_module/       # 数据库模块
+│   │   └── __init__.py
+│   ├── model_module/          # 特征提取模型
+│   │   └── feature_extractor.py
+│   ├── faiss_module/          # Faiss索引模块
+│   │   ├── build_index.py     # 构建索引
+│   │   ├── indexer.py         # 索引器接口
+│   │   ├── search_index.py    # 查询索引
+│   │   └── update_index.py    # 更新索引
+│   ├── route/                 # 路由定义
+│   │   ├── image.py           # 上传图片路由
+│   │   ├── index.py           # 索引路由
+│   │   └── search.py          # 搜索路由
+│   └── worker.py              # 后台任务处理
+├── frontend/                  # 前端 Vue 项目
+│   ├── public/                # 静态资源（如 favicon）
+│   ├── src/                   # 前端核心源码
+│   │   ├── App.vue            # 主组件
+│   │   ├── main.js            # 应用入口
+│   │   ├── assets/            # 前端图片、图标等资源
+│   │   └── components/        # 自定义组件
+│   ├── index.html             # HTML 模板入口
+│   ├── package.json           # 项目依赖说明
+│   └── vite.config.js         # Vite 配置文件
+├── data/                      # 存储特征向量、索引和上传图片
+│   ├── features.npy           # 图像特征文件
+│   ├── ids.npy                # 图像ID映射
+│   ├── image.index            # Faiss 索引文件
+│   └── uploads/               # 用户上传图片示例
+│       └── ...                # 多张 .jpg 图片
+├── docs/                      # 项目相关文档
+│   ├── 软件架构文档.md
+│   ├── 项目开发计划书.md / .pdf
+│   ├── 数据库设计文档.md
+│   ├── 用例规约/             # 包含各类用例规约 Word 文档
+│   ├── 实现规约/             # 各功能模块实现规约
+│   ├── 工作周报/             # 项目周报
+│   └── 文档用图片/           # 架构图、用例图等插图
+├── scripts/                   # 脚本与快捷启动工具
+│   ├── start.sh               # Linux/Mac 启动脚本
+│   ├── start.bat              # Windows 启动脚本
+│   ├── generate_test_images.py# 自动生成测试图像脚本
+├── requirement.txt            # Python 依赖列表
 ```
 
 
