@@ -1,41 +1,53 @@
 import os
 import sys
 import numpy as np
+import heapq
+
 # 添加项目根路径，便于导入 config 和模块
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from config import config
 from faiss_module.indexer import FaissIndexer
 from faiss_module.faiss_utils.similarity_utils import distance_to_similarity_percent
 
-def search_index(query_feature: np.ndarray, top_k=5):
+def search_index(query_feature: np.ndarray, names, top_k=5):
     """
-    使用 FAISS 对给定特征向量进行搜索，返回 top_k 个最相似图像的编号（ID）。
+    支持多索引库的查询。
     参数:
-        query_feature (np.ndarray): 查询图像的特征向量，形状应为 (dim,) 或 (1, dim)
-        top_k (int): 返回最相似的结果数量，默认 5
+        query_feature (np.ndarray): 查询向量
+        names (str or List[str]): 单个或多个索引文件名（如 'index1.index' 或 ['a.index', 'b.index']）
+        top_k (int): 返回最相似的 top_k 个图像 ID
     返回:
-        List[int]: 最相似图像的编号（ID）
+        List[int], List[float]: 匹配的 ID 列表 和 相似度百分比列表
     """
-    # 确保 query_feature 是二维形状 (1, dim)
+    if isinstance(names, str):
+        names = [names]
+    if top_k < 1:
+        raise ValueError("top_k 必须大于等于 1")
+    # 标准化查询向量形状
     if query_feature.ndim == 1:
         query_feature = query_feature.reshape(1, -1)
     elif query_feature.ndim != 2:
         raise ValueError("query_feature 必须是 1 维或 2 维 numpy 数组")
-    dim = config.VECTOR_DIM
-    # 初始化索引器并加载索引
-    indexer = FaissIndexer(
-        dim=dim,
-        index_path=config.INDEX_PATH,
-        nlist=config.N_LIST
-    )
-    indexer.load_index()
-    distances, indices = indexer.search(query_feature.astype('float32'), top_k)
-    similarities = distance_to_similarity_percent(distances[0])
-    return indices[0].tolist(), similarities.tolist()
 
-# 示例用法
-if __name__ == "__main__":
-    # 从文件加载示例特征，调用函数测试
-    example_feature = np.load(os.path.join(config.FEATURE_DIR, "query.npy"))
-    result_ids = search_index(example_feature, top_k=5)
-    print("最相似图像编号列表：", result_ids)
+    dim = config.VECTOR_DIM
+    results = []  # 用于收集所有库的搜索结果
+    query_feature = query_feature.astype('float32')
+    for name in names:
+        index_path = os.path.join(config.INDEX_FOLDER, name)
+        if not os.path.exists(index_path):
+            print(f"索引文件 {index_path} 不存在，跳过。")
+            continue
+
+        indexer = FaissIndexer(dim=dim, index_path=index_path, nlist=config.N_LIST)
+        indexer.load_index()
+        distances, indices = indexer.search(query_feature.astype('float32'), top_k)
+
+        for d, i in zip(distances[0], indices[0]):
+            results.append((d, i))
+
+    # 保留最小的 top_k 项（按距离排序）
+    top_k_results = heapq.nsmallest(top_k, results, key=lambda x: x[0])
+    final_distances, final_indices = zip(*top_k_results) if top_k_results else ([], [])
+
+    similarities = distance_to_similarity_percent(np.array(final_distances))
+    return list(final_indices), similarities.tolist()

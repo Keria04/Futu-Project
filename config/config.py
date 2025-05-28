@@ -17,8 +17,8 @@ print("当前工作目录:", BASE_DIR)
 FEATURE_PATH = os.path.join(BASE_DIR, "data", "features.npy")
 # 图像 ID 文件路径（可选）
 ID_PATH = os.path.join(BASE_DIR, "data", "ids.npy")
-# FAISS 索引文件保存路径
-INDEX_PATH = os.path.join(BASE_DIR, "data", "image.index")
+# FAISS 索引文件夹路径
+INDEX_FOLDER = os.path.join(BASE_DIR, "data", "indexes")
 # 特征维度（如 ResNet 输出为 512）
 VECTOR_DIM = 2048
 # IVF 索引中的聚类数量（影响召回速度与精度）
