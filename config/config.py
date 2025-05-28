@@ -38,3 +38,6 @@ DATASET_DIR = os.path.join(BASE_DIR, 'datasets')
 DISTRIBUTED_AVAILABLE = True
 # 相似度转换SIGMA超参数，越大缓冲性越强
 SIMILARITY_SIGMA=10.0
+
+# -----------数据库相关-----------
+DATABASE_PATH = os.path.join(BASE_DIR, "data", "main.db")  # 数据库文件名
