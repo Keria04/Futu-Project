@@ -23,7 +23,7 @@ def _build_where_clause(where):
     where_clause = "WHERE " + " AND ".join(clauses)
     return where_clause, params
 
-def fetch_one(table, columns='*', where=None):
+def query_one(table, columns='*', where=None):
     """
     查询单条记录
     :param table: 表名
@@ -41,7 +41,7 @@ def fetch_one(table, columns='*', where=None):
         print(f"查询失败: {str(e)}")
         return None
 
-def fetch_all(table, columns='*', where=None, order_by=None, limit=None):
+def query_multi(table, columns='*', where=None, order_by=None, limit=None):
     """
     查询多条记录
     :param table: 表名
@@ -65,9 +65,9 @@ def fetch_all(table, columns='*', where=None, order_by=None, limit=None):
         
 if __name__ == "__main__":
     # 查询单条记录
-    user = fetch_one("users", where={"id": 1})
+    user = query_one("users", where={"id": 1})
     print("单条记录:", user)
 
     # 查询多条记录
-    users = fetch_all("users", where={"status": "active"}, order_by="id DESC", limit=10)
+    users = query_multi("users", where={"status": "active"}, order_by="id DESC", limit=10)
     print("多条记录:", users)
