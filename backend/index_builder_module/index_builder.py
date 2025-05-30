@@ -28,9 +28,12 @@ class IndexBuilder:
     def build(self):
         img_files = [f for f in os.listdir(self.dataset_dir) if f.lower().endswith(self.img_exts) and f != 'query.jpg']
         img_files.sort()
+        if not img_files:
+            print(f"数据集目录 {self.dataset_dir} 下没有可用图片文件")
+            raise ValueError(f"数据集目录 {self.dataset_dir} 下没有可用图片文件")
         features = []
         ids = []
-        image_records = []  # 新增：用于批量插入图片信息
+        image_records = []
         self.id_map.clear()
         if self.distributed and self.distributed_available:
             print("尝试使用远程特征提取构建索引...")
@@ -70,38 +73,47 @@ class IndexBuilder:
             print("已采用本地特征提取。")
         features = np.stack(features).astype('float32')
         ids = np.array(ids, dtype='int64')
-        np.save(self.features_path, features)
-        np.save(self.ids_path, ids)
-        print("ids内容:", ids)
-        print("features内容:", features)
-        print(f"特征已保存到 {self.features_path}，ID已保存到 {self.ids_path}")
-
-        # 使用build_index构建索引
-        build_index()
-        print("索引已构建完成。")
-        print("数据集特征与索引构建完成，可以进行图片检索。")
+        # np.save(self.features_path, features)
+        # np.save(self.ids_path, ids)
+        # print("ids内容:", ids)
+        # print("features内容:", features)
+        # print(f"特征已保存到 {self.features_path}，ID已保存到 {self.ids_path}")
 
         # 写入数据库
         dataset_id = self._update_database(len(img_files), features.nbytes)
 
-        # 新增：将图片特征写入 images 表
-        if dataset_id is not None:
-            for idx, fname in enumerate(img_files):
-                image_path = os.path.join(self.dataset_dir, fname)
-                feature_vector = features[idx].tobytes()
-                image_records.append({
-                    "dataset_id": dataset_id,
-                    "image_path": image_path,
-                    "resource_type": "control",  # 可根据实际情况调整
-                    "metadata_json": None,
-                    "feature_vector": feature_vector,
-                    "external_ids": None
-                })
-            # 先删除该数据集下旧图片记录，再插入新记录
-            from database_module.modify import delete
-            delete("images", {"dataset_id": dataset_id})
-            insert_multi("images", image_records)
-            print(f"已写入 {len(image_records)} 条图片特征到数据库。")
+        # 先删除该数据集下旧图片记录，再插入新记录
+        from database_module.modify import delete
+        delete("images", {"dataset_id": dataset_id})
+
+        # 不再手动指定 id 字段，交由数据库自增主键分配，避免 UNIQUE constraint failed
+        for idx, fname in enumerate(img_files):
+            image_path = os.path.join(self.dataset_dir, fname)
+            feature_vector = features[idx].tobytes()
+            image_records.append({
+                "dataset_id": dataset_id,
+                "image_path": image_path,
+                "resource_type": "control",
+                "metadata_json": None,
+                "feature_vector": feature_vector,
+                "external_ids": None
+            })
+        from database_module.modify import insert_multi
+        insert_multi("images", image_records)
+        print(f"已写入 {len(image_records)} 条图片特征到数据库。")
+
+        # 重新查询插入后的图片id顺序，保证索引id与数据库一致
+        from database_module.query import query_multi
+        rows = query_multi(
+            "images",
+            columns="id",
+            where={"dataset_id": dataset_id},
+            order_by="id ASC"
+        )
+        db_ids = np.array([row[0] for row in rows], dtype='int64')
+
+        # 使用build_index构建索引，传入数据集名称作为索引文件名
+        build_index(features, db_ids, name=f"{dataset_id}.index")
 
         return True
 

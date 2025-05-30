@@ -1,6 +1,6 @@
 <script setup>
 import { ref, nextTick } from 'vue'
-import axios from 'axios' // 新增：引入axios
+import axios from 'axios'
 
 const queryImg = ref(null)
 const previewUrl = ref('')
@@ -13,6 +13,7 @@ let imgObj = null
 
 // 新增：用于临时显示正在绘制的框
 let drawingRect = null
+const datasetNames = ref(['']) // 支持多个数据集名称
 
 function onFileChange(e) {
   const file = e.target.files[0]
@@ -97,12 +98,29 @@ function onMouseMove(ev) {
   drawingRect = { x, y, w, h }
 }
 
+function addDataset() {
+  datasetNames.value.push('')
+}
+function removeDataset(idx) {
+  if (datasetNames.value.length > 1) {
+    datasetNames.value.splice(idx, 1)
+  }
+}
+
 async function buildIndex(distributed = false) {
   buildMsg.value = '正在构建索引...'
+  // 收集所有非空数据集名称
+  const names = datasetNames.value.filter(name => !!name)
+  if (!names.length) {
+    buildMsg.value = '请填写数据集名称'
+    return
+  }
   const url = distributed ? '/api/build_index_distributed' : '/api/build_index'
   try {
-    // 传递空对象，axios 会自动设置 Content-Type 为 application/json
-    const resp = await axios.post(url, {})
+    const resp = await axios.post(url, {
+      dataset_names: names,
+      distributed: distributed
+    })
     buildMsg.value = resp.data.msg
   } catch (e) {
     buildMsg.value = '构建索引失败'
@@ -120,6 +138,10 @@ async function submitSearch() {
   form.append('crop_y', crop.value.y)
   form.append('crop_w', crop.value.w)
   form.append('crop_h', crop.value.h)
+  // 新增：支持多个数据集名称（后端建议用 dataset_names[] 作为 key）
+  datasetNames.value.forEach(name => {
+    if (name) form.append('dataset_names[]', name)
+  })
   try {
     const resp = await axios.post('/api/search', form, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -136,6 +158,19 @@ async function submitSearch() {
   <div class="upload-container">
     <h1 class="title">图片检索系统</h1>
     <div class="upload-panel">
+      <div style="margin-bottom: 1rem; width: 100%;">
+        <div v-for="(name, idx) in datasetNames" :key="idx" style="display: flex; align-items: center; margin-bottom: 0.3rem;">
+          <input
+            class="dataset-input"
+            type="text"
+            v-model="datasetNames[idx]"
+            :placeholder="`请输入数据集名称${datasetNames.length > 1 ? '（可多选）' : ''}`"
+            style="width: 220px; padding: 0.4rem;"
+          />
+          <button v-if="datasetNames.length > 1" class="btn" style="margin-left: 0.5rem; padding: 0.2rem 0.7rem;" @click="removeDataset(idx)">-</button>
+        </div>
+        <button class="btn" style="padding: 0.2rem 0.7rem;" @click="addDataset">+</button>
+      </div>
       <input class="file-input" type="file" accept="image/*" @change="onFileChange" />
       <div class="btn-group">
         <button class="btn" @click="buildIndex(false)">本地构建索引</button>
@@ -156,10 +191,11 @@ async function submitSearch() {
     <div v-if="results.length" class="result-panel">
       <h2>检索结果</h2>
       <ol>
-        <li v-for="item in results" :key="item.idx" class="result-item">
+        <li v-for="item in results" :key="item.idx + '-' + item.dataset" class="result-item">
+          <!-- 展示图片时带上数据集名 -->
           <img :src="item.img_url" class="result-img" />
           <div class="result-info">
-            {{ item.fname }} (编号: {{ item.idx }})
+            {{ item.fname }} (编号: {{ item.idx }}) <span v-if="item.dataset">[{{ item.dataset }}]</span>
             <span v-if="item.similarity !== undefined">
               | 相似度: {{ item.similarity.toFixed(2) }}%
             </span>

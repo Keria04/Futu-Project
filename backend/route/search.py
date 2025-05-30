@@ -1,27 +1,17 @@
 from flask import Blueprint, request, jsonify
-from werkzeug.utils import secure_filename
-from PIL import Image
-import os
-from model_module.feature_extractor import feature_extractor
-from faiss_module.search_index import search_index
-from config import config
+from search_module.search import search_image
 
 search_bp = Blueprint('search', __name__)
 
-DATASET_DIR = config.DATASET_DIR
-UPLOAD_FOLDER = config.UPLOAD_FOLDER
-
 @search_bp.route('/api/search', methods=['POST'])
 def api_search():
-    img_exts = ('.jpg', '.jpeg', '.png', '.bmp')
-    img_files = [f for f in os.listdir(DATASET_DIR) if f.lower().endswith(img_exts)]
-    img_files.sort()
+    # 支持多个数据集名称（dataset_names[]），优先取多个，否则取单个
+    dataset_names = request.form.getlist('dataset_names[]')
+    if not dataset_names:
+        dataset_name = request.form.get('dataset_name')
+        if dataset_name:
+            dataset_names = [dataset_name]
     file = request.files.get('query_img')
-    if not file or not file.filename:
-        return jsonify({"msg": "未上传图片"}), 400
-    filename = secure_filename(file.filename)
-    save_path = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(save_path)
     try:
         x = int(request.form.get('crop_x', 0))
         y = int(request.form.get('crop_y', 0))
@@ -29,16 +19,17 @@ def api_search():
         h = int(request.form.get('crop_h', 0))
     except Exception:
         x, y, w, h = 0, 0, 0, 0
-    img = Image.open(save_path)
-    if w > 0 and h > 0:
-        img = img.crop((x, y, x + w, y + h))
-    embedder = feature_extractor()
-    query_feat = embedder.calculate(img).reshape(1, -1)
-    indices, similarities = search_index(query_feat, top_k=5)
-    # print(f"检索到的索引: {indices}, 相似度: {similarities}")
-    results = []
-    for idx, sim in zip(indices, similarities):
-        fname = img_files[idx]
-        img_url = '/show_image/' + fname
-        results.append({"fname": fname, "idx": idx, "img_url": img_url, "similarity": sim})
-    return jsonify({"results": results})
+
+    if not dataset_names or not any(dataset_names):
+        print("缺少数据集名称")
+        return jsonify({"msg": "缺少数据集名称"}), 400
+    if not file or not file.filename:
+        print("未上传图片")
+        return jsonify({"msg": "未上传图片"}), 400
+
+    # 传递所有数据集名称
+    result = search_image(dataset_names, file, (x, y, w, h))
+    if isinstance(result, dict) and "error" in result:
+        print(f"检索失败: {result['error']}")
+        return jsonify({"msg": result["error"]}), 400
+    return jsonify({"results": result})
