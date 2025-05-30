@@ -18,8 +18,15 @@ class Database:
     def commit(self):
         self.conn.commit()
     
+    def rollback(self):
+        self.conn.rollback()
+    
     def execute(self, query, params=()):
         self.cursor.execute(query, params)
+        return self.cursor
+
+    def execute_many(self, query, seq_of_params):
+        self.cursor.executemany(query, seq_of_params)
         return self.cursor
     
     @classmethod

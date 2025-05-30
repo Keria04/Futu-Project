@@ -101,7 +101,8 @@ async function buildIndex(distributed = false) {
   buildMsg.value = '正在构建索引...'
   const url = distributed ? '/api/build_index_distributed' : '/api/build_index'
   try {
-    const resp = await axios.post(url)
+    // 传递空对象，axios 会自动设置 Content-Type 为 application/json
+    const resp = await axios.post(url, {})
     buildMsg.value = resp.data.msg
   } catch (e) {
     buildMsg.value = '构建索引失败'

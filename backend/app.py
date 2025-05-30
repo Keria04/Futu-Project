@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from config import config
 from PIL import Image
-
+from database_module.schema import create_tables
 app = Flask(__name__)
 
 # 注册蓝图
@@ -28,4 +28,5 @@ app.register_blueprint(search_bp)
 app.register_blueprint(image_bp)
 
 if __name__ == '__main__':
+    create_tables()  # 确保数据库表已创建
     app.run(debug=True, port=19198)
