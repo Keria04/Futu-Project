@@ -10,3 +10,12 @@ def build_dataset_index(dataset_dir, dataset_name, distributed=False):
     :return: True/False
     """
     return build_index(dataset_dir, dataset_name, distributed)
+
+def get_dataset_image_features(dataset_name):
+    """
+    获取指定数据集下所有图片的id和特征向量
+    :param dataset_name: 数据集名称
+    :return: List[Tuple[int, np.ndarray]]
+    """
+    from .factory import get_all_image_features
+    return get_all_image_features(dataset_name)

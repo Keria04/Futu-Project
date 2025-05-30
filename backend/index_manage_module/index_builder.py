@@ -139,3 +139,29 @@ class IndexBuilder:
             }, where={"name": self.dataset_name})
             dataset_id = dataset[0]  # 假设id在第一个字段
         return dataset_id
+
+    def get_all_image_features(self, dataset_name):
+        """
+        查询指定数据集下所有图片的id和特征向量（反序列化为numpy数组）
+        返回: List[Tuple[int, np.ndarray]]
+        """
+        from database_module.query import query_one, query_multi
+        # 查询数据集id
+        dataset = query_one("datasets", where={"name": dataset_name})
+        if dataset is None:
+            raise ValueError(f"数据集 {dataset_name} 不存在")
+        dataset_id = dataset[0]  # id在第一个字段
+        # 查询所有图片的id和特征向量
+        rows = query_multi(
+            "images",
+            columns="id, feature_vector",
+            where={"dataset_id": dataset_id},
+            order_by="id ASC"
+        )
+        result = []
+        for row in rows:
+            img_id = row[0]
+            feat_bytes = row[1]
+            feat = np.frombuffer(feat_bytes, dtype=np.float32)
+            result.append((img_id, feat))
+        return result

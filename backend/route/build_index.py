@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from config import config
-from index_builder_module.api import build_dataset_index
+from index_manage_module.api import build_dataset_index
 import os
 
 build_index_bp = Blueprint('build_index', __name__)
