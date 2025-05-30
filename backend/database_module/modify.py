@@ -118,7 +118,7 @@ if __name__ == "__main__":
         {"name": "Bob", "age": 30},
         {"name": "Charlie", "age": 35}
     ]
-    count = insert_many("users", users)
+    count = insert_multi("users", users)
     print(f"插入 {count} 条记录")
 
     # 更新记录
