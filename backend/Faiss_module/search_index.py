@@ -38,7 +38,7 @@ def search_index(query_feature: np.ndarray, names, top_k=5):
             print(f"索引文件 {index_path} 不存在，跳过。")
             continue
 
-        indexer = FaissIndexer(dim=dim, index_path=index_path, nlist=config.N_LIST)
+        indexer = FaissIndexer(dim=dim, index_path=index_path, use_IVF=True)
         indexer.load_index()
         distances, indices = indexer.search(query_feature.astype('float32'), top_k)
 

@@ -26,7 +26,7 @@ def repeated_search(index_id:int, threshold: float = 95.0, deduplicate: bool = F
     dim = config.VECTOR_DIM
     index_path = os.path.join(config.INDEX_FOLDER, f"{index_id}" + ".index")
     print("index_path:", index_path)
-    indexer = FaissIndexer(dim=dim, index_path=index_path, nlist=config.N_LIST)
+    indexer = FaissIndexer(dim=dim, index_path=index_path, use_IVF=True)
     indexer.load_index()
 
 
