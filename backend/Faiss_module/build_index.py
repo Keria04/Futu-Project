@@ -26,7 +26,7 @@ def build_index(features: np.ndarray, ids: np.ndarray, name: str):
     index_path = os.path.join(config.INDEX_FOLDER, name)
 
     # 3. 构建索引器并生成索引
-    indexer = FaissIndexer(dim=config.VECTOR_DIM, index_path=index_path, nlist=config.N_LIST)
+    indexer = FaissIndexer(dim=config.VECTOR_DIM, index_path=index_path, use_IVF=True)
     indexer.build_index(features.astype("float32"), ids.astype("int64"))
 
     # 4. 保存索引

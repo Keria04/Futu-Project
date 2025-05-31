@@ -10,32 +10,55 @@ indexer.py
 import faiss
 import numpy as np
 import os
+import math
 class FaissIndexer:
     """
-        FaissIndexer 类用于构建、保存、加载和查询 FAISS 索引。
-        属性:
-            dim (int): 特征维度，例如2048。
-            index_path (str): 索引文件保存路径。
-            nlist (int): 倒排列表数量（用于聚类中心数量）。
-            index: FAISS 索引对象。
+       FaissIndexer 类用于构建、保存、加载和查询 FAISS 索引。
+       属性:
+           dim (int): 特征维度，例如2048。
+           index_path (str): 索引文件保存路径。
+           use_IVF (bool): 是否启用 IVF 聚类（默认启用）。
+           index: FAISS 索引对象。
     """
-    def __init__(self, dim, index_path, nlist=50):
+    def __init__(self, dim, index_path, use_IVF):
         self.dim = dim
         self.index_path = index_path
-        self.nlist = nlist
+        self.use_IVF = use_IVF
         self.index = None
     def build_index(self, features: np.ndarray, ids: np.ndarray):
         """
-            构建压缩索引，并绑定自定义图像ID。
-            参数:
-                features (np.ndarray): shape=(N, dim) 的图像特征向量。
-                ids (np.ndarray): shape=(N,) 的图像编号。
+        构建压缩索引，并绑定自定义图像ID。
+        参数:
+            features (np.ndarray): shape=(N, dim) 的图像特征向量。
+            ids (np.ndarray): shape=(N,) 的图像编号。
         """
-        quantizer = "IDMap,IVF{},SQ8".format(self.nlist)
-        self.index = faiss.index_factory(self.dim, quantizer, faiss.METRIC_L2)
-        if not self.index.is_trained:
-            self.index.train(features)
-        self.index.add_with_ids(features, ids)
+        num_data = features.shape[0]
+
+        if self.use_IVF:
+            # 自动设置 nlist（√N）和 nprobe（5%）
+            nlist = max(1, int(math.sqrt(num_data)))
+            nprobe = max(1, math.ceil(nlist * 0.1))
+
+            if num_data < nlist:
+                nlist = num_data  # 避免 nx < k 错误
+
+            quantizer = f"IDMap,IVF{nlist},SQ8"
+            self.index = faiss.index_factory(self.dim, quantizer, faiss.METRIC_L2)
+
+            if not self.index.is_trained:
+                self.index.train(features)
+
+            self.index.add_with_ids(features, ids)
+            self.index.probe= nprobe
+            print(f"[√] 使用 IVF 索引构建完成: nlist={nlist}, nprobe={nprobe}")
+        else:
+            # 不使用 IVF，使用简单的 Flat 索引
+            self.index = faiss.IndexFlatL2(self.dim)
+            id_index = faiss.IndexIDMap(self.index)
+            id_index.add_with_ids(features, ids)
+            self.index = id_index
+            print("[√] 使用 Flat 索引构建完成（测试用途）")
+
     def save_index(self):
         if self.index:
             faiss.write_index(self.index, self.index_path)
