@@ -6,32 +6,42 @@ from model_module.feature_extractor import feature_extractor
 from database_module.query import query_one, query_multi
 from config import config
 from faiss_module.search_index import search_index
+import json
 
 def get_features_and_ids(dataset_id):
     """
     从数据库读取指定数据集的所有图片特征和ID
     :param dataset_id: 数据集ID
-    :return: features (np.ndarray), ids (np.ndarray), image_paths (list)
+    :return: features (np.ndarray), ids (np.ndarray), image_paths (list), descriptions (list)
     """
     rows = query_multi(
         "images",
-        columns="id, feature_vector, image_path",
+        columns="id, feature_vector, image_path, metadata_json",
         where={"dataset_id": dataset_id},
         order_by="id ASC"
     )
     if not rows:
-        return None, None, None
+        return None, None, None, None
     ids = []
     features = []
     image_paths = []
+    descriptions = []
     for row in rows:
-        img_id, feat_blob, img_path = row
+        img_id, feat_blob, img_path, metadata_json = row
         ids.append(img_id)
         features.append(np.frombuffer(feat_blob, dtype=np.float32))
         image_paths.append(img_path)
+        if metadata_json:
+            try:
+                desc = json.loads(metadata_json)
+            except Exception:
+                desc = {}
+        else:
+            desc = {}
+        descriptions.append(desc)
     features = np.stack(features).astype('float32')
     ids = np.array(ids, dtype='int64')
-    return features, ids, image_paths
+    return features, ids, image_paths, descriptions
 
 def search_image(dataset_names, file_storage, crop_box):
     """
@@ -50,18 +60,20 @@ def search_image(dataset_names, file_storage, crop_box):
         dataset_ids.append(dataset[0])
 
     # 合并所有数据集的特征和ID
-    all_features, all_ids, all_image_paths = [], [], []
+    all_features, all_ids, all_image_paths, all_descriptions = [], [], [], []
     for dataset_id in dataset_ids:
-        features, ids, image_paths = get_features_and_ids(dataset_id)
+        features, ids, image_paths, descriptions = get_features_and_ids(dataset_id)
         if features is not None and ids is not None and len(features) > 0:
             all_features.append(features)
             all_ids.append(ids)
             all_image_paths.extend(image_paths)
+            all_descriptions.extend(descriptions)
     if not all_features or not all_ids:
         return {"error": "所选数据集没有图片特征"}
     features = np.concatenate(all_features, axis=0)
     ids = np.concatenate(all_ids, axis=0)
     image_paths = all_image_paths
+    descriptions = all_descriptions
 
     # 保存上传图片
     filename = secure_filename(file_storage.filename)
@@ -91,7 +103,8 @@ def search_image(dataset_names, file_storage, crop_box):
         if len(id_pos) == 0:
             continue
         img_path = image_paths[id_pos[0]]
-        print(f"检索到图片: {img_path}, 相似度: {sim:.4f}")
+        desc = descriptions[id_pos[0]] if descriptions else {}
+        # print(f"检索到图片: {img_path}, 相似度: {sim:.4f}")
         # 兼容图片路径为绝对路径或相对路径，取文件名
         fname = os.path.basename(img_path)
         # 若图片实际存储在 data/数据集名/ 下，前端 show_image 需要传递数据集名
@@ -104,6 +117,7 @@ def search_image(dataset_names, file_storage, crop_box):
             "idx": int(idx),
             "img_url": img_url,
             "similarity": float(sim),
-            "dataset": dataset_dir
+            "dataset": dataset_dir,
+            "description": desc
         })
     return results

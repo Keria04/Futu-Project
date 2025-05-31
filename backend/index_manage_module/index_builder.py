@@ -9,6 +9,8 @@ from database_module.modify import insert_one, insert_multi, update
 from database_module.query import query_one
 from config import config
 import datetime
+import csv
+import json
 
 class IndexBuilder:
     """
@@ -27,7 +29,25 @@ class IndexBuilder:
 
     def build(self):
         img_files = [f for f in os.listdir(self.dataset_dir) if f.lower().endswith(self.img_exts) and f != 'query.jpg']
-        img_files.sort()
+        # 从csv文件中读出这个文件对应的描述，其中第一列的信息都是图片文件名，后面的内容存到 json 中
+        desc_map = {}
+        csv_files = [f for f in os.listdir(self.dataset_dir) if f.lower().endswith('.csv')]
+        if csv_files:
+            desc_csv_path = os.path.join(self.dataset_dir, csv_files[0])
+            with open(desc_csv_path, newline='', encoding='utf-8') as csvfile:
+                reader = csv.reader(csvfile)
+                rows = list(reader)
+                if rows and len(rows[0]) > 1:
+                    header = rows[0][1:]  # 跳过第一列（文件名），其余为描述字段名
+                    for row in rows[1:]:
+                        if not row or len(row) < 2:
+                            continue
+                        fname = row[0]
+                        # 构造字段名到内容的映射
+                        desc_dict = {header[i]: row[i+1] if i+1 < len(row) else "" for i in range(len(header))}
+                        desc_json = json.dumps(desc_dict, ensure_ascii=False)
+                        desc_map[fname] = desc_json
+        # img_files.sort()
         if not img_files:
             print(f"数据集目录 {self.dataset_dir} 下没有可用图片文件")
             raise ValueError(f"数据集目录 {self.dataset_dir} 下没有可用图片文件")
@@ -90,11 +110,12 @@ class IndexBuilder:
         for idx, fname in enumerate(img_files):
             image_path = os.path.join(self.dataset_dir, fname)
             feature_vector = features[idx].tobytes()
+            metadata_json = desc_map.get(fname) if desc_map else None
             image_records.append({
                 "dataset_id": dataset_id,
                 "image_path": image_path,
                 "resource_type": "control",
-                "metadata_json": None,
+                "metadata_json": metadata_json,
                 "feature_vector": feature_vector,
                 "external_ids": None
             })

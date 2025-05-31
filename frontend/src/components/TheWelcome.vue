@@ -192,13 +192,18 @@ async function submitSearch() {
       <h2>检索结果</h2>
       <ol>
         <li v-for="item in results" :key="item.idx + '-' + item.dataset" class="result-item">
-          <!-- 展示图片时带上数据集名 -->
           <img :src="item.img_url" class="result-img" />
           <div class="result-info">
             {{ item.fname }} (编号: {{ item.idx }}) <span v-if="item.dataset">[{{ item.dataset }}]</span>
             <span v-if="item.similarity !== undefined">
               | 相似度: {{ item.similarity.toFixed(2) }}%
             </span>
+            <!-- 新增：输出描述 -->
+            <div v-if="item.description && Object.keys(item.description).length" class="desc-info">
+              <span v-for="(val, key) in item.description" :key="key" style="display:inline-block;margin-right:1em;">
+                <b>{{ key }}:</b> {{ val }}
+              </span>
+            </div>
           </div>
         </li>
       </ol>
@@ -321,6 +326,11 @@ async function submitSearch() {
   font-size: 1.08rem;
   color: #222;
   word-break: break-all;
+}
+.desc-info {
+  margin-top: 0.3em;
+  color: #666;
+  font-size: 0.98em;
 }
 @media (max-width: 500px) {
   .upload-container {
