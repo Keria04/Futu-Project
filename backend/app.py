@@ -30,3 +30,4 @@ app.register_blueprint(image_bp)
 if __name__ == '__main__':
     create_tables()  # 确保数据库表已创建
     app.run(debug=True, port=19198)
+
