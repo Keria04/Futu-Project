@@ -152,6 +152,41 @@ async function submitSearch() {
   }
   uploading.value = false
 }
+
+const repeatedGroups = ref([])
+const repMsg = ref('')
+const repLoading = ref(false)
+const repThreshold = ref(95)
+
+async function findRepeated() {
+  repMsg.value = ''
+  repeatedGroups.value = []
+  repLoading.value = true
+  // 只用第一个数据集名称（可自行扩展为多数据集）
+  const dsName = datasetNames.value[0]
+  if (!dsName) {
+    repMsg.value = '请填写数据集名称'
+    repLoading.value = false
+    return
+  }
+  // 获取数据集id
+  try {
+    const dsResp = await axios.post('/api/get_dataset_id', { name: dsName })
+    const dsId = dsResp.data.id
+    const resp = await axios.post('/api/repeated_search', {
+      index_id: dsId,
+      threshold: repThreshold.value,
+      deduplicate: false
+    })
+    repeatedGroups.value = resp.data.groups || []
+    if (!repeatedGroups.value.length) {
+      repMsg.value = '未检测到重复图片'
+    }
+  } catch (e) {
+    repMsg.value = '查重失败'
+  }
+  repLoading.value = false
+}
 </script>
 
 <template>
@@ -207,6 +242,25 @@ async function submitSearch() {
           </div>
         </li>
       </ol>
+    </div>
+    <div style="margin-top:2rem;width:100%;text-align:left;">
+      <h2 style="font-size:1.08rem;">查找重复图片</h2>
+      <div style="display:flex;align-items:center;gap:0.5em;">
+        <label>相似度阈值：</label>
+        <input type="number" v-model="repThreshold" min="80" max="100" step="1" style="width:60px;" />
+        <button class="btn" :disabled="repLoading" @click="findRepeated">
+          {{ repLoading ? '查重中...' : '查找重复图片' }}
+        </button>
+        <span style="color:#888;font-size:0.96em;" v-if="repMsg">{{ repMsg }}</span>
+      </div>
+      <div v-if="repeatedGroups.length" class="repeated-result">
+        <ol>
+          <li v-for="(group, idx) in repeatedGroups" :key="idx" style="margin-bottom:0.5em;">
+            <b>重复组 {{ idx + 1 }}：</b>
+            <span v-for="id in group" :key="id" style="margin-right:0.8em;">图片ID: {{ id }}</span>
+          </li>
+        </ol>
+      </div>
     </div>
   </div>
 </template>
@@ -331,6 +385,13 @@ async function submitSearch() {
   margin-top: 0.3em;
   color: #666;
   font-size: 0.98em;
+}
+.repeated-result {
+  margin-top: 1em;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 1em;
+  font-size: 1.01em;
 }
 @media (max-width: 500px) {
   .upload-container {
