@@ -29,6 +29,6 @@ def build_index(features: np.ndarray, ids: np.ndarray, name: str):
     indexer = FaissIndexer(dim=config.VECTOR_DIM, index_path=index_path, use_IVF=True)
     indexer.build_index(features.astype("float32"), ids.astype("int64"))
 
-    # 4. 保存索引
+    # 4. 保存索引test
     indexer.save_index()
     print(f"索引已保存至 {index_path}")
