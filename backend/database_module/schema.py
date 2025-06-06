@@ -44,7 +44,7 @@ def create_tables():
         db.execute(datasets_sql)
         db.execute(images_sql)
         db.commit()
-        print("数据库表已创建或已存在。")
+        # print("数据库表已创建或已存在。")
     except Exception as e:
         db.rollback()
         print(f"创建表失败: {str(e)}")
