@@ -63,15 +63,20 @@ Futu-Project/
 ## 开始
 
 系统环境：
-python3.8.0+、anaconda
+python3.8.0、anaconda
 
 使用pip安装requirement.txt中的内容
+
+```bash
+pip install -r requirement.txt
+```
+
+
 
 并通过conda install安装faiss，pytorch，torchvision
 
 ```bash
-conda install -c conda-forge faiss-cpu
-conda install pytorch torchvision
+conda install -c conda-forge faiss-cpu pytorch torchvision
 ```
 
 激活虚拟环境，并运行./scripts/start.sh

@@ -32,7 +32,14 @@ app.register_blueprint(repeated_search_bp)
 app.register_blueprint(get_dataset_id_bp)
 
 if __name__ == '__main__':
-    create_tables()  # 确保数据库表已创建
+    # 创建必要目录
+    os.makedirs('data/indexes', exist_ok=True)
+    os.makedirs('data/uploads', exist_ok=True)
+    os.makedirs('datasets', exist_ok=True)
+    
+    # 确保数据库表已创建
+    create_tables()
+    
     app.run(debug=True, port=19198)
     # 运行 Flask 应用
 
