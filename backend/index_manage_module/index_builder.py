@@ -11,6 +11,7 @@ from config import config
 import datetime
 import csv
 import json
+from tqdm import tqdm
 
 # ========================
 # 索引构建核心类定义
@@ -32,7 +33,7 @@ class IndexBuilder:
         self.distributed_available = getattr(config, "DISTRIBUTED_AVAILABLE", False)
 
     # ---------- 索引构建主流程 ----------
-    def build(self):
+    def build(self, progress_file=None):
         # --- 1. 读取图片文件和描述信息 ---
         img_files = [f for f in os.listdir(self.dataset_dir) if f.lower().endswith(self.img_exts) and f != 'query.jpg']
         desc_map = {}
@@ -77,6 +78,12 @@ class IndexBuilder:
         img_files_to_process = [fname for fname in img_files if os.path.join(self.dataset_dir, fname) not in existing_paths]
         print(f"本次需要计算特征的图片数量: {len(img_files_to_process)}")
 
+        # 进度条初始化
+        total_imgs = len(img_files_to_process)
+        pbar = None
+        if progress_file and total_imgs > 0:
+            pbar = tqdm(total=total_imgs, desc="特征提取", file=open(progress_file, "w", encoding="utf-8"), ncols=80)
+        processed_fnames = []
         # 删除数据库中已不存在的图片
         deleted_db_ids = [img_id for img_id, path in db_id_path_map.items() if path not in img_paths_set]
         if deleted_db_ids:
@@ -107,9 +114,11 @@ class IndexBuilder:
                         embedding = np.array(embedding_list, dtype='float32').reshape(1, -1)
                         self.id_map[idx] = fname
                         features.append(embedding.squeeze())
+                        if pbar: pbar.update(1)
                     except Exception as e:
                         print(f"处理图片 {fname} 时发生错误: {e}")
-                        return False
+                        if pbar: pbar.update(1)
+                        continue
                 print("已采用远程特征提取。")
             else:
                 print("采用本地特征提取构建索引...")
@@ -126,7 +135,10 @@ class IndexBuilder:
                     except Exception as e:
                         print(f"[跳过] 图片 {fname} 处理失败: {e}")
                         continue
+                    if pbar: pbar.update(1)
                 print("已采用本地特征提取。")
+            if pbar:
+                pbar.close()
             if features:
                 features = np.stack(features).astype('float32')
             # --- 3. 写入数据库（仅插入新图片） ---

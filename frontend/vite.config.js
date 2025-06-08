@@ -16,6 +16,7 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts: ['frp-few.com'],
     port: 19197,
     proxy: {
       '/api': 'http://localhost:19198',

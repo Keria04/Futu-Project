@@ -107,8 +107,14 @@ function removeDataset(idx) {
   }
 }
 
+const buildProgress = ref(0)
+const buildStatus = ref('')
+let progressTimer = null
+
 async function buildIndex(distributed = false) {
   buildMsg.value = '正在构建索引...'
+  buildProgress.value = 0
+  buildStatus.value = ''
   // 收集所有非空数据集名称
   const names = datasetNames.value.filter(name => !!name)
   if (!names.length) {
@@ -117,14 +123,36 @@ async function buildIndex(distributed = false) {
   }
   const url = distributed ? '/api/build_index_distributed' : '/api/build_index'
   try {
-    const resp = await axios.post(url, {
+    const resp = await axios.post('/api/build_index', {
       dataset_names: names,
       distributed: distributed
     })
     buildMsg.value = resp.data.msg
+    // 轮询进度
+    if (resp.data.progress && resp.data.progress.length > 0) {
+      const progressUrl = resp.data.progress[0].progress_file
+      pollProgress(progressUrl)
+    }
   } catch (e) {
     buildMsg.value = '构建索引失败'
   }
+}
+
+function pollProgress(progressUrl) {
+  if (progressTimer) clearInterval(progressTimer)
+  progressTimer = setInterval(async () => {
+    try {
+      const resp = await axios.get(progressUrl)
+      buildProgress.value = resp.data.progress
+      buildStatus.value = resp.data.status
+      if (resp.data.status === 'done') {
+        clearInterval(progressTimer)
+        buildMsg.value = '索引构建完成'
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+  }, 1000)
 }
 
 async function submitSearch() {
@@ -212,6 +240,13 @@ async function findRepeated() {
         <button class="btn" @click="buildIndex(true)">远程构建索引</button>
       </div>
       <div v-if="buildMsg" class="msg">{{ buildMsg }}</div>
+      <!-- 新增进度条 -->
+      <div v-if="buildProgress > 0 && buildStatus !== 'done'" style="width:100%;margin-bottom:1em;">
+        <div class="progress-bar">
+          <div class="progress-inner" :style="{width: buildProgress + '%'}"></div>
+        </div>
+        <div style="font-size:0.98em;color:#666;">进度: {{ buildProgress }}%</div>
+      </div>
       <canvas
         ref="canvasRef"
         id="preview-canvas"
@@ -392,6 +427,19 @@ async function findRepeated() {
   border-radius: 8px;
   padding: 1em;
   font-size: 1.01em;
+}
+.progress-bar {
+  width: 100%;
+  height: 16px;
+  background: #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.3em;
+}
+.progress-inner {
+  height: 100%;
+  background: linear-gradient(90deg, #2d8cf0 0%, #42b983 100%);
+  transition: width 0.3s;
 }
 @media (max-width: 500px) {
   .upload-container {
