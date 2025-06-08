@@ -11,11 +11,16 @@ from config import config
 import datetime
 import csv
 import json
+from tqdm import tqdm
 
+# ========================
+# 索引构建核心类定义
+# ========================
 class IndexBuilder:
     """
     索引构建核心类，外部请通过 factory.py 或 api.py 调用，不要直接实例化本类
     """
+    # ---------- 初始化部分 ----------
     def __init__(self, dataset_dir, dataset_name, distributed=False):
         self.dataset_dir = dataset_dir
         self.dataset_name = dataset_name
@@ -27,9 +32,10 @@ class IndexBuilder:
         self.id_map = {}
         self.distributed_available = getattr(config, "DISTRIBUTED_AVAILABLE", False)
 
-    def build(self):
+    # ---------- 索引构建主流程 ----------
+    def build(self, progress_file=None):
+        # --- 1. 读取图片文件和描述信息 ---
         img_files = [f for f in os.listdir(self.dataset_dir) if f.lower().endswith(self.img_exts) and f != 'query.jpg']
-        # 从csv文件中读出这个文件对应的描述，其中第一列的信息都是图片文件名，后面的内容存到 json 中
         desc_map = {}
         csv_files = [f for f in os.listdir(self.dataset_dir) if f.lower().endswith('.csv')]
         if csv_files:
@@ -38,106 +44,147 @@ class IndexBuilder:
                 reader = csv.reader(csvfile)
                 rows = list(reader)
                 if rows and len(rows[0]) > 1:
-                    header = rows[0][1:]  # 跳过第一列（文件名），其余为描述字段名
+                    header = rows[0][1:]
                     for row in rows[1:]:
                         if not row or len(row) < 2:
                             continue
                         fname = row[0]
-                        # 构造字段名到内容的映射
                         desc_dict = {header[i]: row[i+1] if i+1 < len(row) else "" for i in range(len(header))}
                         desc_json = json.dumps(desc_dict, ensure_ascii=False)
                         desc_map[fname] = desc_json
-        # img_files.sort()
         if not img_files:
             print(f"数据集目录 {self.dataset_dir} 下没有可用图片文件")
             raise ValueError(f"数据集目录 {self.dataset_dir} 下没有可用图片文件")
         features = []
-        ids = []
         image_records = []
         self.id_map.clear()
-        if self.distributed and self.distributed_available:
-            print("尝试使用远程特征提取构建索引...")
-            task_futures = []
-            for idx, fname in enumerate(img_files):
-                path = os.path.join(self.dataset_dir, fname)
-                with open(path, 'rb') as f:
-                    img_data = f.read()
-                img_data_b64 = base64.b64encode(img_data).decode('utf-8')
-                try:
-                    future = generate_embeddings_task.delay(img_data_b64)
-                    task_futures.append((idx, fname, future))
-                except Exception as e:
-                    print(f"远程任务提交失败: {e}")
-                    return False
-            for idx, fname, future in task_futures:
-                try:
-                    embedding_list = future.get(timeout=60)
-                    embedding = np.array(embedding_list, dtype='float32').reshape(1, -1)
-                    self.id_map[idx] = fname
-                    features.append(embedding.squeeze())
-                    ids.append(idx)
-                except Exception as e:
-                    print(f"处理图片 {fname} 时发生错误: {e}")
-                    return False
-            print("已采用远程特征提取。")
+
+        # --- 1.5 读取数据库图片路径，处理新增和已删除图片 ---
+        from database_module.query import query_one, query_multi
+        dataset = query_one("datasets", where={"name": self.dataset_name})
+        dataset_id = dataset[0] if dataset else None
+        db_id_path_map = {}
+        if dataset_id is not None:
+            rows = query_multi(
+                "images",
+                columns="id, image_path",
+                where={"dataset_id": dataset_id}
+            )
+            db_id_path_map = {row[0]: row[1] for row in rows}
+        existing_paths = set(db_id_path_map.values())
+        img_paths_set = set(os.path.join(self.dataset_dir, fname) for fname in img_files)
+
+        # 新增图片
+        img_files_to_process = [fname for fname in img_files if os.path.join(self.dataset_dir, fname) not in existing_paths]
+        print(f"本次需要计算特征的图片数量: {len(img_files_to_process)}")
+
+        # 进度条初始化
+        total_imgs = len(img_files_to_process)
+        pbar = None
+        if progress_file and total_imgs > 0:
+            pbar = tqdm(total=total_imgs, desc="特征提取", file=open(progress_file, "w", encoding="utf-8"), ncols=80)
+        processed_fnames = []
+        # 删除数据库中已不存在的图片
+        deleted_db_ids = [img_id for img_id, path in db_id_path_map.items() if path not in img_paths_set]
+        if deleted_db_ids:
+            from database_module.modify import delete
+            for img_id in deleted_db_ids:
+                delete("images", {"id": img_id})
+            print(f"已从数据库删除 {len(deleted_db_ids)} 条已不存在图片的记录。")
+
+        # --- 2. 特征提取（本地或分布式） ---
+        if img_files_to_process:
+            if self.distributed and self.distributed_available:
+                print("尝试使用远程特征提取构建索引...")
+                task_futures = []
+                for idx, fname in enumerate(img_files_to_process):
+                    path = os.path.join(self.dataset_dir, fname)
+                    with open(path, 'rb') as f:
+                        img_data = f.read()
+                    img_data_b64 = base64.b64encode(img_data).decode('utf-8')
+                    try:
+                        future = generate_embeddings_task.delay(img_data_b64)
+                        task_futures.append((idx, fname, future))
+                    except Exception as e:
+                        print(f"远程任务提交失败: {e}")
+                        return False
+                for idx, fname, future in task_futures:
+                    try:
+                        embedding_list = future.get(timeout=60)
+                        embedding = np.array(embedding_list, dtype='float32').reshape(1, -1)
+                        self.id_map[idx] = fname
+                        features.append(embedding.squeeze())
+                        if pbar: pbar.update(1)
+                    except Exception as e:
+                        print(f"处理图片 {fname} 时发生错误: {e}")
+                        if pbar: pbar.update(1)
+                        continue
+                print("已采用远程特征提取。")
+            else:
+                print("采用本地特征提取构建索引...")
+                embedder = feature_extractor()
+                processed_fnames = []
+                for idx, fname in enumerate(img_files_to_process):
+                    path = os.path.join(self.dataset_dir, fname)
+                    try:
+                        img = Image.open(path)
+                        feat = embedder.calculate(img)
+                        self.id_map[idx] = fname
+                        features.append(feat)
+                        processed_fnames.append(fname)
+                    except Exception as e:
+                        print(f"[跳过] 图片 {fname} 处理失败: {e}")
+                        continue
+                    if pbar: pbar.update(1)
+                print("已采用本地特征提取。")
+            if pbar:
+                pbar.close()
+            if features:
+                features = np.stack(features).astype('float32')
+            # --- 3. 写入数据库（仅插入新图片） ---
+            dataset_id = self._update_database(len(img_files), (features.nbytes if len(features) > 0 else 0))
+            # 注意：只写入成功处理的图片
+            for idx, fname in enumerate(processed_fnames if 'processed_fnames' in locals() else img_files_to_process):
+                image_path = os.path.join(self.dataset_dir, fname)
+                feature_vector = features[idx].tobytes()
+                metadata_json = desc_map.get(fname) if desc_map else None
+                image_records.append({
+                    "dataset_id": dataset_id,
+                    "image_path": image_path,
+                    "resource_type": "control",
+                    "metadata_json": metadata_json,
+                    "feature_vector": feature_vector,
+                    "external_ids": None
+                })
+            if image_records:
+                from database_module.modify import insert_multi
+                insert_multi("images", image_records)
+                print(f"已写入 {len(image_records)} 条新图片特征到数据库。")
+            else:
+                print("没有新图片需要写入数据库。")
         else:
-            print("采用本地特征提取构建索引...")
-            embedder = feature_extractor()
-            for idx, fname in enumerate(img_files):
-                path = os.path.join(self.dataset_dir, fname)
-                img = Image.open(path)
-                feat = embedder.calculate(img)
-                self.id_map[idx] = fname
-                features.append(feat)
-                ids.append(idx)
-            print("已采用本地特征提取。")
-        features = np.stack(features).astype('float32')
-        ids = np.array(ids, dtype='int64')
-        # np.save(self.features_path, features)
-        # np.save(self.ids_path, ids)
-        # print("ids内容:", ids)
-        # print("features内容:", features)
-        # print(f"特征已保存到 {self.features_path}，ID已保存到 {self.ids_path}")
+            # 如果没有新增图片，仍需更新 image_count
+            if dataset_id is not None:
+                self._update_database(len(img_files), 0)
 
-        # 写入数据库
-        dataset_id = self._update_database(len(img_files), features.nbytes)
-
-        # 先删除该数据集下旧图片记录，再插入新记录
-        from database_module.modify import delete
-        delete("images", {"dataset_id": dataset_id})
-
-        # 不再手动指定 id 字段，交由数据库自增主键分配，避免 UNIQUE constraint failed
-        for idx, fname in enumerate(img_files):
-            image_path = os.path.join(self.dataset_dir, fname)
-            feature_vector = features[idx].tobytes()
-            metadata_json = desc_map.get(fname) if desc_map else None
-            image_records.append({
-                "dataset_id": dataset_id,
-                "image_path": image_path,
-                "resource_type": "control",
-                "metadata_json": metadata_json,
-                "feature_vector": feature_vector,
-                "external_ids": None
-            })
-        from database_module.modify import insert_multi
-        insert_multi("images", image_records)
-        print(f"已写入 {len(image_records)} 条图片特征到数据库。")
-
-        # 重新查询插入后的图片id顺序，保证索引id与数据库一致
-        from database_module.query import query_multi
+        # --- 4. 查询数据库所有图片特征，构建索引文件 ---
         rows = query_multi(
             "images",
-            columns="id",
+            columns="id, feature_vector, image_path",
             where={"dataset_id": dataset_id},
             order_by="id ASC"
         )
-        db_ids = np.array([row[0] for row in rows], dtype='int64')
-
-        # 使用build_index构建索引，传入数据集名称作为索引文件名
-        build_index(features, db_ids, name=f"{dataset_id}.index")
-
+        # 只保留数据库中图片路径仍然存在于文件夹中的图片
+        valid_rows = [row for row in rows if row[2] in img_paths_set]
+        if len(valid_rows) > 0:
+            db_ids = np.array([row[0] for row in valid_rows], dtype='int64')
+            features = np.stack([np.frombuffer(row[1], dtype=np.float32) for row in valid_rows]).astype('float32')
+            build_index(features, db_ids, name=f"{dataset_id}.index")
+        else:
+            print("没有有效图片可用于构建索引。")
         return True
 
+    # ---------- 数据库更新辅助方法 ----------
     def _update_database(self, image_count, feature_bytes):
         now = datetime.datetime.now()
         # 查询数据集是否已存在
@@ -161,6 +208,7 @@ class IndexBuilder:
             dataset_id = dataset[0]  # 假设id在第一个字段
         return dataset_id
 
+    # ---------- 查询所有图片特征 ----------
     def get_all_image_features(self, dataset_name):
         """
         查询指定数据集下所有图片的id和特征向量（反序列化为numpy数组）

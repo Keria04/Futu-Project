@@ -11,7 +11,7 @@ normalize_std = [0.229, 0.224, 0.225]   # 图像预处理的标准差
 # config/faiss_config.py
 import os
 BASE_DIR = os.path.abspath(os.getcwd())
-print("当前工作目录:", BASE_DIR)
+# print("当前工作目录:", BASE_DIR)
 
 # 特征文件路径
 FEATURE_PATH = os.path.join(BASE_DIR, "data", "features.npy")

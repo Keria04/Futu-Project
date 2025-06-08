@@ -55,7 +55,7 @@ Futu-Project/
 │   ├── start.sh               # Linux/Mac 启动脚本
 │   ├── start.bat              # Windows 启动脚本
 │   ├── generate_test_images.py# 自动生成测试图像脚本
-├── requirement.txt            # Python 依赖列表
+├── requirement.txt            # Python 依赖列表（使用pip安装的）
 ```
 
 
@@ -63,7 +63,21 @@ Futu-Project/
 ## 开始
 
 系统环境：
-python3.12.0+、anaconda
+python3.8.0、anaconda
+
+使用pip安装requirement.txt中的内容
+
+```bash
+pip install -r requirement.txt
+```
+
+
+
+并通过conda install安装faiss，pytorch，torchvision
+
+```bash
+conda install -c conda-forge faiss-cpu pytorch torchvision
+```
 
 激活虚拟环境，并运行./scripts/start.sh
 

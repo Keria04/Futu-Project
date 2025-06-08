@@ -1,9 +1,63 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from config import config
 from index_manage_module.api import build_dataset_index
 import os
+import threading
+import time
 
-build_index_bp = Blueprint('build_index', __name__)
+build_index_bp = Blueprint('build_index', __name__, url_prefix='/api')
+
+from index_manage_module.index_builder import IndexBuilder
+
+progress_dir = "data/progress"
+os.makedirs(progress_dir, exist_ok=True)
+
+# 构建索引接口（支持进度条）
+@build_index_bp.route('/build_index', methods=['POST'])
+def build_index():
+    data = request.get_json()
+    dataset_names = data.get('dataset_names', [])
+    distributed = data.get('distributed', False)
+    results = []
+    for ds_name in dataset_names:
+        dataset_dir = os.path.join("datasets", ds_name)
+        progress_file = os.path.join(progress_dir, f"{ds_name}_progress.txt")
+        # 清空进度文件
+        with open(progress_file, "w", encoding="utf-8") as f:
+            f.write("")
+        def build_task():
+            builder = IndexBuilder(dataset_dir, ds_name, distributed=distributed)
+            builder.build(progress_file=progress_file)
+        # 后台线程执行
+        t = threading.Thread(target=build_task)
+        t.start()
+        results.append({"dataset": ds_name, "progress_file": f"/api/build_index/progress/{ds_name}"})
+    return jsonify({"msg": "索引构建已启动", "progress": results})
+
+# 进度条轮询接口
+@build_index_bp.route('/build_index/progress/<dataset_name>', methods=['GET'])
+def get_progress(dataset_name):
+    progress_file = os.path.join(progress_dir, f"{dataset_name}_progress.txt")
+    if not os.path.exists(progress_file):
+        return jsonify({"progress": 0, "status": "pending"})
+    try:
+        with open(progress_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            if not lines:
+                return jsonify({"progress": 0, "status": "pending"})
+            last_line = lines[-1]
+            # tqdm格式: "特征提取:  10%|##        | 1/10 [00:00<00:00,  5.00it/s]"
+            import re
+            m = re.search(r'(\d+)/(\d+)', last_line)
+            if m:
+                current = int(m.group(1))
+                total = int(m.group(2))
+                percent = int(current / total * 100)
+                status = "done" if current == total else "running"
+                return jsonify({"progress": percent, "current": current, "total": total, "status": status})
+    except Exception:
+        pass
+    return jsonify({"progress": 0, "status": "pending"})
 
 @build_index_bp.route('/api/build_index', methods=['POST'])
 def api_build_index():
