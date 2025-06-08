@@ -114,18 +114,25 @@ class IndexBuilder:
             else:
                 print("采用本地特征提取构建索引...")
                 embedder = feature_extractor()
+                processed_fnames = []
                 for idx, fname in enumerate(img_files_to_process):
                     path = os.path.join(self.dataset_dir, fname)
-                    img = Image.open(path)
-                    feat = embedder.calculate(img)
-                    self.id_map[idx] = fname
-                    features.append(feat)
+                    try:
+                        img = Image.open(path)
+                        feat = embedder.calculate(img)
+                        self.id_map[idx] = fname
+                        features.append(feat)
+                        processed_fnames.append(fname)
+                    except Exception as e:
+                        print(f"[跳过] 图片 {fname} 处理失败: {e}")
+                        continue
                 print("已采用本地特征提取。")
             if features:
                 features = np.stack(features).astype('float32')
             # --- 3. 写入数据库（仅插入新图片） ---
             dataset_id = self._update_database(len(img_files), (features.nbytes if len(features) > 0 else 0))
-            for idx, fname in enumerate(img_files_to_process):
+            # 注意：只写入成功处理的图片
+            for idx, fname in enumerate(processed_fnames if 'processed_fnames' in locals() else img_files_to_process):
                 image_path = os.path.join(self.dataset_dir, fname)
                 feature_vector = features[idx].tobytes()
                 metadata_json = desc_map.get(fname) if desc_map else None
