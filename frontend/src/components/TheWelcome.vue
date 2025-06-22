@@ -184,7 +184,7 @@ async function submitSearch() {
 const repeatedGroups = ref([])
 const repMsg = ref('')
 const repLoading = ref(false)
-const repThreshold = ref(95)
+const repThreshold = ref(90)
 
 async function findRepeated() {
   repMsg.value = ''
@@ -219,7 +219,10 @@ async function findRepeated() {
 
 <template>
   <div class="upload-container">
-    <h1 class="title">图片检索系统</h1>
+    <h1 class="title">搜图</h1>
+    <h2 style="font-size: 15px; color: #333; margin-bottom: 0.2rem;">通过反向图片搜索，您可以以图搜图、URL 和与图片相关的关键字。
+
+</h2>
     <div class="upload-panel">
       <div style="margin-bottom: 1rem; width: 100%;">
         <div v-for="(name, idx) in datasetNames" :key="idx" style="display: flex; align-items: center; margin-bottom: 0.3rem;">
@@ -227,14 +230,13 @@ async function findRepeated() {
             class="dataset-input"
             type="text"
             v-model="datasetNames[idx]"
-            :placeholder="`请输入数据集名称${datasetNames.length > 1 ? '（可多选）' : ''}`"
+            :placeholder="`按关键字搜索${datasetNames.length > 1 ? '（可多选）' : ''}`"
             style="width: 220px; padding: 0.4rem;"
           />
           <button v-if="datasetNames.length > 1" class="btn" style="margin-left: 0.5rem; padding: 0.2rem 0.7rem;" @click="removeDataset(idx)">-</button>
         </div>
         <button class="btn" style="padding: 0.2rem 0.7rem;" @click="addDataset">+</button>
       </div>
-      <input class="file-input" type="file" accept="image/*" @change="onFileChange" />
       <div class="btn-group">
         <button class="btn" @click="buildIndex(false)">本地构建索引</button>
         <button class="btn" @click="buildIndex(true)">远程构建索引</button>
@@ -247,6 +249,7 @@ async function findRepeated() {
         </div>
         <div style="font-size:0.98em;color:#666;">进度: {{ buildProgress }}%</div>
       </div>
+    <div class="canvas-upload-wrapper" :class="{ 'no-image': !previewUrl }"  @click="() => $refs.fileInput.click()">
       <canvas
         ref="canvasRef"
         id="preview-canvas"
@@ -254,6 +257,22 @@ async function findRepeated() {
         @mousedown="onMouseDown"
         @mouseup="onMouseUp"
       ></canvas>
+      <!--文件上传区域-->
+      <div class="canvas-upload-tip">
+        <div class="canvas-upload-maintext">
+         在此处上传您的图片，或
+         <span class="canvas-upload-link">浏览</span>
+        </div>
+        <div class="canvas-upload-subtip">最大文件大小：20Mb</div>
+      </div>
+      <input 
+        ref="fileInput"
+        type="file"
+        accept="image/*"
+        style="display:none;"
+        @change="onFileChange"
+      />
+    </div>
       <button class="btn main-btn" :disabled="!queryImg || uploading" @click="submitSearch">
         {{ uploading ? '检索中...' : '上传并检索' }}
       </button>
@@ -303,23 +322,23 @@ async function findRepeated() {
 <style scoped>
 .upload-container {
   background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 6px 32px 0 rgba(60,60,60,0.10);
-  padding: 2.5rem 2rem 2rem 2rem;
+  border-radius: 20px;
+  box-shadow: 10px 10px 40px 0 rgba(60,60,60,0.10);
+  padding: 1.5rem 2rem 2rem 2rem;
   width: 96vw;
   max-width: 75vw;
   min-width: 320px;
-  margin: 3rem auto 2rem auto;
+  margin: -1.5rem auto 0rem auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   box-sizing: border-box;
 }
 .title {
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: #2d8cf0;
-  margin-bottom: 1.5rem;
+  font-size: 35px;
+  font-weight: 500;
+  color:黑色;
+  margin-bottom: 0.5rem;
   letter-spacing: 2px;
 }
 .upload-panel {
@@ -337,7 +356,7 @@ async function findRepeated() {
   margin-bottom: 1.2rem;
 }
 .btn {
-  background: linear-gradient(90deg, #2d8cf0 0%, #42b983 100%);
+  background: linear-gradient(90deg, #00b4db 0%, #0083b0 100%);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -349,7 +368,7 @@ async function findRepeated() {
   box-shadow: 0 2px 8px 0 rgba(60,60,60,0.06);
 }
 .btn:hover:enabled {
-  background: linear-gradient(90deg, #42b983 0%, #2d8cf0 100%);
+  background: linear-gradient(90deg, #00b4db 0%, #0083b0 100%);
 }
 .main-btn {
   margin-top: 1.5rem;
@@ -359,10 +378,13 @@ async function findRepeated() {
   letter-spacing: 1px;
 }
 .btn:disabled {
-  background: #b5e2d4;
-  cursor: not-allowed;
-  opacity: 0.7;
+  background: #d3d3d3;  /* 浅灰色 */
+  color: #a9a9a9;  /* 更深的灰色文字 */
+  border: 1px solid #ccc;  /* 灰色边框 */
+  cursor: not-allowed;  /* 禁止点击 */
+  opacity: 0.7;  /* 轻微透明效果 */
 }
+
 .msg {
   color: #2d8cf0;
   margin-bottom: 1rem;
@@ -370,10 +392,10 @@ async function findRepeated() {
   min-height: 1.2em;
 }
 .preview-canvas {
-  margin: 0.7rem 0 0.7rem 0;
+  margin: 0.5rem 0 0.5rem 0;
   width: 100%;
-  max-width: 340px;
-  max-height: 340px;
+  max-width: 0px;
+  max-height: 0px;
   border: 2px solid #e0e0e0;
   border-radius: 10px;
   background: #f8fafc;
@@ -451,5 +473,119 @@ async function findRepeated() {
     max-width: 98vw;
     min-width: 0;
   }
+  .upload-box {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  max-height: 680px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: #f8fafc;
+  box-shadow: 0 2px 8px 0 rgba(60, 60, 60, 0.04);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.file-label {
+  position: absolute;
+  font-size: 16px;
+  color: #333;
+  cursor: pointer;
+  text-align: center;
+}
+
+.file-size-hint {
+  margin-top: 0px;
+  font-size: 10px;
+  color: #888;
+}
+
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.preview-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+
+.canvas-upload-tip {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: 1.08em;
+  color: #222;
+  background: rgba(255,255,255,0.85);
+  border-radius: 10px;
+}
+.canvas-upload-subtip {
+  margin-top: 0.5em;
+  color: #888;
+  font-size: 0.98em;
+}
+
+}
+.canvas-upload-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  min-height: 240px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: #f8fafc;
+  box-shadow: 0 2px 8px 0 rgba(60,60,60,0.04);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  margin: 0.5rem 0 0.5rem 0;
+  transition: border 0.2s;
+}
+.canvas-upload-wrapper.no-image {
+  border: 2px dashed #b0b0b0;
+  background: #f8fafc;
+}
+.canvas-upload-tip {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+}
+
+.canvas-upload-maintext {
+  font-size: 1.25em;
+  font-weight: bold;
+  color: #222;
+  margin-bottom: 0.3em;
+}
+
+.canvas-upload-link {
+  color: #1976d2;
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-left: 2px;
+}
+
+.canvas-upload-subtip {
+  color: #888;
+  font-size: 0.98em;
+  margin-top: 0.2em;
+  font-weight: normal;
 }
 </style>
