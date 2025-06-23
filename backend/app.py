@@ -23,6 +23,7 @@ from route.search import search_bp
 from route.image import image_bp
 from route.repeated_search import bp as repeated_search_bp
 from route.get_dataset_id import bp as get_dataset_id_bp
+from route.get_datasets import bp as get_datasets_bp
 
 app.register_blueprint(index_bp)
 app.register_blueprint(build_index_bp)
@@ -30,6 +31,7 @@ app.register_blueprint(search_bp)
 app.register_blueprint(image_bp)
 app.register_blueprint(repeated_search_bp)
 app.register_blueprint(get_dataset_id_bp)
+app.register_blueprint(get_datasets_bp)
 
 if __name__ == '__main__':
     # 创建必要目录

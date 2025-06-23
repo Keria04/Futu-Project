@@ -58,6 +58,11 @@ export const datasetApi = {
   // 获取数据集ID
   getDatasetId(name) {
     return api.post('/get_dataset_id', { name })
+  },
+  
+  // 获取所有数据集列表
+  getDatasets() {
+    return api.get('/datasets')
   }
 }
 
