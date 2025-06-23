@@ -1,48 +1,16 @@
 <template>
   <div class="dataset-overview">
-    <!-- 搜索框 -->
-    <div class="search-section">
-      <div class="search-container">
-        <div class="search-input-wrapper">
-          <input 
-            type="text" 
-            class="search-input" 
-            placeholder="Hinted search pic"
-            v-model="searchQuery"
-            @input="handleSearch"
-          />
-          <button class="search-button" @click="performSearch">
-            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="11" cy="11" r="8"></circle>
-              <path d="m21 21-4.35-4.35"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>    <!-- 数据集展示区域 -->
-    <div class="datasets-section">
-      <!-- 快捷操作栏 -->
-      <div class="quick-actions">
-        <h2 class="section-title">数据集管理</h2>
-        <div class="action-buttons">
-          <button class="quick-action-btn" @click="navigateToModule('search')">
-            <span class="action-icon">🔍</span>
-            <span>图片检索</span>
-          </button>
-          <button class="quick-action-btn" @click="navigateToModule('index')">
-            <span class="action-icon">🏗️</span>
-            <span>构建索引</span>
-          </button>
-          <button class="quick-action-btn" @click="navigateToModule('duplicate')">
-            <span class="action-icon">🎯</span>
-            <span>重复检测</span>
-          </button>
-        </div>
-      </div>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h2 class="page-title">数据集管理</h2>
+      <p class="page-description">管理和查看所有可用的图片数据集</p>
+    </div>
 
+    <!-- 数据集展示区域 -->
+    <div class="datasets-section">
       <div class="datasets-container">
         <div 
-          v-for="dataset in filteredDatasets" 
+          v-for="dataset in datasets" 
           :key="dataset.id" 
           class="dataset-card"
           @click="selectDataset(dataset)"
@@ -51,11 +19,11 @@
           <!-- 数据集头部 -->
           <div class="dataset-header">
             <div class="dataset-avatar">
-              {{ dataset.name.charAt(0) }}
+              {{ dataset.name.charAt(dataset.name.length - 1) }}
             </div>
             <div class="dataset-info">
               <h3 class="dataset-title">{{ dataset.name }}</h3>
-              <p class="dataset-subtitle">Subhead</p>
+              <p class="dataset-subtitle">数据集 {{ dataset.id }}</p>
             </div>
             <div class="dataset-menu">
               <button class="menu-button" @click.stop="toggleMenu(dataset.id)">
@@ -92,9 +60,8 @@
             <button 
               class="action-button secondary"
               @click.stop="enableDataset(dataset)"
-              :disabled="dataset.enabled"
             >
-              {{ dataset.enabled ? 'Enabled' : 'Enabled' }}
+              Enabled
             </button>
             <button 
               class="action-button primary"
@@ -115,30 +82,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { datasetApi } from '@/services/api'
-
-// 定义组件事件
-const emit = defineEmits(['navigate'])
 
 // 响应式数据
 const datasets = ref([])
 const loading = ref(false)
-const searchQuery = ref('')
 const selectedDatasets = ref([])
-
-// 计算属性 - 过滤的数据集
-const filteredDatasets = computed(() => {
-  if (!searchQuery.value) {
-    return datasets.value
-  }
-  
-  const query = searchQuery.value.toLowerCase()
-  return datasets.value.filter(dataset => 
-    dataset.name.toLowerCase().includes(query) ||
-    dataset.description.toLowerCase().includes(query)
-  )
-})
 
 // 获取数据集列表
 const fetchDatasets = async () => {
@@ -154,16 +104,6 @@ const fetchDatasets = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// 搜索处理
-const handleSearch = () => {
-  // 实时搜索，已通过计算属性实现
-}
-
-const performSearch = () => {
-  // 跳转到图片检索页面
-  emit('navigate', 'search')
 }
 
 // 选择数据集
@@ -187,11 +127,6 @@ const toggleMenu = (datasetId) => {
   console.log('切换菜单:', datasetId)
 }
 
-// 导航到其他功能
-const navigateToModule = (module) => {
-  emit('navigate', module)
-}
-
 // 组件挂载时获取数据
 onMounted(() => {
   fetchDatasets()
@@ -203,70 +138,27 @@ onMounted(() => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
+  min-height: calc(100vh - 80px);
 }
 
-/* 搜索区域 */
-.search-section {
+/* 页面头部 */
+.page-header {
+  text-align: center;
   margin-bottom: 3rem;
-  display: flex;
-  justify-content: center;
 }
 
-.search-container {
-  max-width: 600px;
-  width: 100%;
-}
-
-.search-input-wrapper {
-  position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  padding: 4px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-.search-input {
-  width: 100%;
-  padding: 1rem 1.5rem;
-  border: none;
-  background: transparent;
-  font-size: 1rem;
-  outline: none;
-  color: #333;
-}
-
-.search-input::placeholder {
-  color: #999;
-}
-
-.search-button {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #667eea;
-  border: none;
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.search-button:hover {
-  background: #5a6fd8;
-}
-
-.search-icon {
-  width: 20px;
-  height: 20px;
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
   color: white;
+  margin: 0 0 0.5rem 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.page-description {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
 }
 
 /* 数据集区域 */
@@ -275,55 +167,6 @@ onMounted(() => {
   border-radius: 20px;
   padding: 2rem;
   backdrop-filter: blur(10px);
-}
-
-/* 快捷操作栏 */
-.quick-actions {
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.section-title {
-  margin: 0;
-  color: white;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.quick-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  color: white;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-}
-
-.quick-action-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-}
-
-.action-icon {
-  font-size: 1.1rem;
 }
 
 .datasets-container {
@@ -563,6 +406,10 @@ onMounted(() => {
 @media (max-width: 768px) {
   .dataset-overview {
     padding: 1rem;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
   }
   
   .datasets-container {
