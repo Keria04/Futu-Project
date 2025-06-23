@@ -76,13 +76,17 @@ class IndexBuilder:
 
         # 新增图片
         img_files_to_process = [fname for fname in img_files if os.path.join(self.dataset_dir, fname) not in existing_paths]
-        print(f"本次需要计算特征的图片数量: {len(img_files_to_process)}")
-
-        # 进度条初始化
+        print(f"本次需要计算特征的图片数量: {len(img_files_to_process)}")        # 进度条初始化
         total_imgs = len(img_files_to_process)
         pbar = None
-        if progress_file and total_imgs > 0:
-            pbar = tqdm(total=total_imgs, desc="特征提取", file=open(progress_file, "w", encoding="utf-8"), ncols=80)
+        if progress_file:
+            if total_imgs > 0:
+                pbar = tqdm(total=total_imgs, desc="特征提取", file=open(progress_file, "w", encoding="utf-8"), ncols=80)
+            else:
+                # 没有新图片需要处理时，直接写入完成状态
+                with open(progress_file, "w", encoding="utf-8") as f:
+                    f.write("特征提取: 100%|██████████| 0/0 [00:00<00:00]\n")
+                    f.write("索引构建完成\n")
         processed_fnames = []
         # 删除数据库中已不存在的图片
         deleted_db_ids = [img_id for img_id, path in db_id_path_map.items() if path not in img_paths_set]
@@ -120,6 +124,11 @@ class IndexBuilder:
                         if pbar: pbar.update(1)
                         continue
                 print("已采用远程特征提取。")
+                if pbar:
+                    pbar.close()
+                    # 在进度文件末尾添加完成标记
+                    with open(progress_file, "a", encoding="utf-8") as f:
+                        f.write("索引构建完成\n")
             else:
                 print("采用本地特征提取构建索引...")
                 embedder = feature_extractor()
@@ -139,6 +148,9 @@ class IndexBuilder:
                 print("已采用本地特征提取。")
             if pbar:
                 pbar.close()
+                # 在进度文件末尾添加完成标记
+                with open(progress_file, "a", encoding="utf-8") as f:
+                    f.write("索引构建完成\n")
             if features:
                 features = np.stack(features).astype('float32')
             # --- 3. 写入数据库（仅插入新图片） ---
