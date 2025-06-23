@@ -1,0 +1,16 @@
+{
+  "id": "",
+  "name": "",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "11124174",
+      "name": "上传图片",
+      "font_class": "upload",
+      "unicode": "e635",
+      "unicode_decimal": 58933
+    }
+  ]
+}

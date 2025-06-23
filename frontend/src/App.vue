@@ -5,7 +5,7 @@ import TheWelcome from './components/TheWelcome.vue'
 <template>
   <div class="app-bg">
     <header class="header-bar">
-      <span class="header-title">智能图片检索系统</span>
+      <span class="header-title">图片检索系统</span>
       <span class="header-desc">支持多数据集</span>
     </header>
     <main class="main-center">
@@ -42,7 +42,7 @@ import TheWelcome from './components/TheWelcome.vue'
   margin-right: 0.7em;
 }
 .header-title {
-  font-size: 1.18rem;
+  font-size: 25px;
   font-weight: 700;
   color: #2563eb;
   letter-spacing: 1.5px;

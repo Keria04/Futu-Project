@@ -15,6 +15,8 @@ let imgObj = null
 let drawingRect = null
 const datasetNames = ref(['']) // 支持多个数据集名称
 
+ 
+
 function onFileChange(e) {
   const file = e.target.files[0]
   if (!file) return
@@ -224,15 +226,17 @@ async function findRepeated() {
 
 </h2>
     <div class="upload-panel">
-      <div style="margin-bottom: 1rem; width: 100%;">
-        <div v-for="(name, idx) in datasetNames" :key="idx" style="display: flex; align-items: center; margin-bottom: 0.3rem;">
+      <div style="margin-bottom: 0.5rem; width: 100%;">
+        <div class="search-input-wrapper" v-for="(name, idx) in datasetNames" :key="idx" >
+          <span class="search-icon-inside iconfont1 icon-sousuo"></span>
+
           <input
-            class="dataset-input"
+            class="dataset-input" 
             type="text"
             v-model="datasetNames[idx]"
             :placeholder="`按关键字搜索${datasetNames.length > 1 ? '（可多选）' : ''}`"
-            style="width: 220px; padding: 0.4rem;"
           />
+        
           <button v-if="datasetNames.length > 1" class="btn" style="margin-left: 0.5rem; padding: 0.2rem 0.7rem;" @click="removeDataset(idx)">-</button>
         </div>
         <button class="btn" style="padding: 0.2rem 0.7rem;" @click="addDataset">+</button>
@@ -259,11 +263,12 @@ async function findRepeated() {
       ></canvas>
       <!--文件上传区域-->
       <div class="canvas-upload-tip">
+        <span class="iconfont icon-upload"></span>
         <div class="canvas-upload-maintext">
          在此处上传您的图片，或
          <span class="canvas-upload-link">浏览</span>
         </div>
-        <div class="canvas-upload-subtip">最大文件大小：20Mb</div>
+        <div class="canvas-upload-subtip">最大文件大小：20MB</div>
       </div>
       <input 
         ref="fileInput"
@@ -298,12 +303,12 @@ async function findRepeated() {
       </ol>
     </div>
     <div style="margin-top:2rem;width:100%;text-align:left;">
-      <h2 style="font-size:1.08rem;">查找重复图片</h2>
+      <!-- <h2 style="font-size:20px;">查找相似图片</h2> -->
       <div style="display:flex;align-items:center;gap:0.5em;">
-        <label>相似度阈值：</label>
-        <input type="number" v-model="repThreshold" min="80" max="100" step="1" style="width:60px;" />
+        <label style="font-size:19px">相似度阈值：</label>
+        <input type="number" v-model="repThreshold" min="0" max="100" step="1" style="width:60px;height:30px;font-size:15px;border-radius:8px;" />
         <button class="btn" :disabled="repLoading" @click="findRepeated">
-          {{ repLoading ? '查重中...' : '查找重复图片' }}
+          {{ repLoading ? '查找中...' : '查找相似图片' }}
         </button>
         <span style="color:#888;font-size:0.96em;" v-if="repMsg">{{ repMsg }}</span>
       </div>
@@ -320,6 +325,9 @@ async function findRepeated() {
 </template>
 
 <style scoped>
+@import '../assets/font/iconfont.css';
+@import '../assets/font1/iconfont1.css';
+
 .upload-container {
   background: #fff;
   border-radius: 20px;
@@ -587,5 +595,58 @@ async function findRepeated() {
   font-size: 0.98em;
   margin-top: 0.2em;
   font-weight: normal;
+}
+
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 0.6em;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dataset-input {
+  width: 450px;
+  padding: 0.5rem 1rem 0.5rem 2,2rem;
+  font-size: 17px;
+  border: 1px solid;
+  border-radius: 10px;
+  margin-right: 0;
+  transition: border 0.2s;
+  box-sizing: border-box;
+}
+.dataset-input:focus {
+  /* border-color: #1976d2; */
+  outline: none;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.3rem;
+  width: 300px;
+}
+
+.dataset-input {
+  width: 100%;
+  padding: 0.5rem 1rem 0.5rem 2.2rem; /* 左侧留空间给图标 */
+  font-size: 17px;
+  border: 1.5px solid ;
+  border-radius: 8px;
+  transition: border 0.2s;
+  box-sizing: border-box;
+}
+
+.search-icon-inside {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2em;
+  color: #1976d2;
+  pointer-events: none;
+  z-index: 2;
 }
 </style>
