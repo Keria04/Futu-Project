@@ -42,15 +42,15 @@ def get_datasets():
                 
                 datasets.append({
                     'id': item,
-                    'name': f'Dataset{item}',
+                    'name': item,  # 只用目录名作为卡片名称
                     'folder': item,
                     'image_count': image_count,
-                    'description': f'数据集 {item}，包含 {image_count} 张图片',
+                    'description': f'{item}，包含 {image_count} 张图片',
                     'first_image_url': first_image_url
                 })
         
-        # 按ID排序
-        datasets.sort(key=lambda x: int(x['id']) if x['id'].isdigit() else x['id'])
+        # 不再对id做int排序，直接按名称排序，支持任意英文/数字目录名
+        datasets.sort(key=lambda x: x['id'])
         
         return jsonify({'datasets': datasets})
         

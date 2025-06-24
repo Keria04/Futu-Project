@@ -10,7 +10,7 @@
     <div class="datasets-section">
       <div class="datasets-container">
         <div 
-          v-for="dataset in datasets" 
+          v-for="(dataset, idx) in datasets" 
           :key="dataset.id" 
           class="dataset-card"
           @click="selectDataset(dataset)"
@@ -19,7 +19,7 @@
           <!-- 数据集头部 -->
           <div class="dataset-header">
             <div class="dataset-avatar">
-              {{ dataset.name.charAt(dataset.name.length - 1) }}
+              {{ idx + 1 }}
             </div>
             <div class="dataset-info">
               <h3 class="dataset-title">{{ dataset.name }}</h3>
@@ -62,17 +62,18 @@
 
           <!-- 操作按钮 -->
           <div class="dataset-actions">
-            <button 
-              class="action-button secondary"
-              @click.stop="enableDataset(dataset)"
-            >
-              Enabled
-            </button>
+            <input
+              type="file"
+              multiple
+              :id="'upload-' + dataset.id"
+              style="display:none"
+              @change="e => handleUpload(e, dataset)"
+            />
             <button 
               class="action-button primary"
-              @click.stop="enableDataset(dataset)"
+              @click.stop="() => triggerUpload(dataset)"
             >
-              Enabled
+              上传图片
             </button>
           </div>
         </div>
@@ -148,6 +149,25 @@ function onImgError(e) {
 onMounted(() => {
   fetchDatasets()
 })
+
+const handleUpload = async (event, dataset) => {
+  const files = event.target.files
+  if (!files || files.length === 0) return
+  const formData = new FormData()
+  for (let i = 0; i < files.length; i++) {
+    formData.append('images', files[i])
+  }
+  formData.append('dataset', dataset.id)
+  try {
+    const res = await datasetApi.uploadImages(formData)
+    alert('上传成功，返回：' + JSON.stringify(res.data))
+  } catch (err) {
+    alert('上传失败')
+  }
+}
+const triggerUpload = (dataset) => {
+  document.getElementById('upload-' + dataset.id).click()
+}
 </script>
 
 <style scoped>
@@ -188,8 +208,21 @@ onMounted(() => {
 
 .datasets-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
+}
+
+@media (max-width: 1200px) {
+  .datasets-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .datasets-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
 
 /* 数据集卡片 */
@@ -438,15 +471,6 @@ onMounted(() => {
   
   .page-title {
     font-size: 1.5rem;
-  }
-  
-  .datasets-container {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .dataset-card {
-    padding: 1rem;
   }
 }
 </style>

@@ -20,37 +20,15 @@
         />
         <span class="threshold-unit">%</span>
       </div>
-    </div>
-    <!-- 新增：图片上传区域和进度条 -->
-    <div class="upload-section">
-      <div class="custom-upload-box" @click="triggerFileInput">
-        <input 
-          class="file-input" 
-          type="file" 
-          accept="image/*" 
-          @change="onFileChange"
-          ref="fileInputRef"
-        />
-        <div v-if="!previewUrl" class="upload-content">
-          <svg width="48" height="48" viewBox="0 0 1024 1024" fill="none"><path d="M512 128v512m0 0l-192-192m192 192l192-192" stroke="#b5b5b5" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/><rect x="128" y="704" width="768" height="192" rx="48" fill="#f5f6fa" stroke="#e0e0e0" stroke-width="4"/></svg>
-          <div class="upload-text">
-            <span>在此处上传您的图片，或 <span class="upload-link">浏览</span></span>
-            <div class="upload-tip">最大文件大小：20MB</div>
-          </div>
-        </div>
-        <div v-else class="preview-img-wrapper">
-          <img :src="previewUrl" class="preview-img-full" />
-        </div>
-      </div>
-      <ProgressBar :progress="buildProgress" :is-visible="showProgressBar" />
       <button 
         class="btn btn-detect" 
-        :disabled="!selectedFile || loading"
+        :disabled="loading"
         @click="findDuplicates"
       >
-        {{ loading ? (showProgressBar ? '索引中...' : '查重中...') : '查找重复图片' }}
+        {{ loading ? '查重中...' : '查找重复图片' }}
       </button>
     </div>
+    <ProgressBar :progress="buildProgress" :is-visible="showProgressBar" />
     <MessageDisplay 
       v-if="message"
       :message="message"
@@ -67,7 +45,6 @@
 import { ref } from 'vue'
 import { duplicateApi, indexApi } from '../../services/api.js'
 import { useLoading } from '../../composables/useLoading.js'
-import { useImageHandler } from '../../composables/useImageHandler.js'
 import DatasetManager from '../Common/DatasetManager.vue'
 import MessageDisplay from '../Common/MessageDisplay.vue'
 import DuplicateResults from './DuplicateResults.vue'
@@ -78,34 +55,14 @@ const messageType = ref('info')
 const singleDataset = ref([''])
 const threshold = ref(95)
 const duplicateGroups = ref([])
-
-// 图片上传相关
-const { previewUrl, handleFileChange } = useImageHandler()
-const fileInputRef = ref(null)
-const selectedFile = ref(null)
 const buildProgress = ref(0)
 const showProgressBar = ref(false)
-
-function onFileChange(event) {
-  const file = event.target.files[0]
-  if (!file) return
-  selectedFile.value = file
-  handleFileChange(file)
-}
-function triggerFileInput() {
-  fileInputRef.value && fileInputRef.value.click()
-}
 
 // 查重时自动构建索引（如未构建）并查重
 async function findDuplicates() {
   const datasetName = singleDataset.value[0]?.trim()
   if (!datasetName) {
     message.value = '请填写数据集名称'
-    messageType.value = 'warning'
-    return
-  }
-  if (!selectedFile.value) {
-    message.value = '请选择要查重的图片'
     messageType.value = 'warning'
     return
   }
@@ -135,11 +92,6 @@ async function findDuplicates() {
   // 索引构建完成后查重
   startLoading('正在查重...')
   try {
-    // 这里可根据后端API调整，假设查重API支持图片上传
-    const formData = new FormData()
-    formData.append('query_img', selectedFile.value)
-    formData.append('dataset_name', datasetName)
-    formData.append('threshold', threshold.value)
     const resp = await duplicateApi.findDuplicates(datasetName, threshold.value)
     duplicateGroups.value = resp.data.groups || []
     if (duplicateGroups.value.length === 0) {
