@@ -38,14 +38,19 @@
 
           <!-- 数据集预览图 -->
           <div class="dataset-preview">
-            <div class="preview-placeholder">
-              <!-- 简单的几何图形作为预览 -->
-              <div class="preview-shapes">
-                <div class="shape triangle"></div>
-                <div class="shape square"></div>
-                <div class="shape circle"></div>
+            <template v-if="dataset.first_image_url">
+              <img :src="fixImageUrl(dataset.first_image_url)" alt="预览图" class="dataset-preview-img" @error="onImgError($event)" />
+            </template>
+            <template v-else>
+              <div class="preview-placeholder">
+                <!-- 简单的几何图形作为预览 -->
+                <div class="preview-shapes">
+                  <div class="shape triangle"></div>
+                  <div class="shape square"></div>
+                  <div class="shape circle"></div>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
 
           <!-- 数据集描述 -->
@@ -125,6 +130,18 @@ const enableDataset = (dataset) => {
 // 切换菜单
 const toggleMenu = (datasetId) => {
   console.log('切换菜单:', datasetId)
+}
+
+// 修正图片URL（兼容端口、绝对路径等问题）
+function fixImageUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  // 自动补全为后端端口
+  return `http://localhost:19198${url}`
+}
+// 图片加载失败时回退为占位图
+function onImgError(e) {
+  e.target.style.display = 'none'
 }
 
 // 组件挂载时获取数据
@@ -264,6 +281,17 @@ onMounted(() => {
   background: #f5f5f5;
   border-radius: 12px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dataset-preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  margin: auto;
 }
 
 .preview-placeholder {

@@ -32,6 +32,7 @@
             图片检索
           </button>
           
+          <!--
           <button 
             class="nav-button"
             :class="{ active: currentView === 'index' }"
@@ -45,6 +46,7 @@
             </svg>
             构建索引
           </button>
+          -->
           
           <button 
             class="nav-button"
