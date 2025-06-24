@@ -1,5 +1,6 @@
 import os
 from flask import Blueprint, jsonify
+from urllib.parse import quote  # 新增
 
 # 创建蓝图
 bp = Blueprint('get_datasets', __name__, url_prefix='/api')
@@ -26,19 +27,26 @@ def get_datasets():
             if os.path.isdir(item_path):
                 # 统计该数据集中的图片数量
                 image_count = 0
+                image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+                image_files = []
                 if os.path.exists(item_path):
-                    # 支持的图片格式
-                    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
                     for file in os.listdir(item_path):
                         if any(file.lower().endswith(ext) for ext in image_extensions):
                             image_count += 1
+                            image_files.append(file)
+                
+                # 查找第一张图片并URL编码
+                first_image_url = None
+                if image_files:
+                    first_image_url = f"/datasets/{quote(item)}/{quote(image_files[0])}"
                 
                 datasets.append({
                     'id': item,
                     'name': f'Dataset{item}',
                     'folder': item,
                     'image_count': image_count,
-                    'description': f'数据集 {item}，包含 {image_count} 张图片'
+                    'description': f'数据集 {item}，包含 {image_count} 张图片',
+                    'first_image_url': first_image_url
                 })
         
         # 按ID排序
