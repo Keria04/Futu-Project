@@ -63,6 +63,13 @@ export const datasetApi = {
   // 获取所有数据集列表
   getDatasets() {
     return api.get('/datasets')
+  },
+  
+  // 上传图片到数据集
+  uploadImages(formData) {
+    return api.post('/upload_images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
   }
 }
 
