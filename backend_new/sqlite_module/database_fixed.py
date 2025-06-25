@@ -25,7 +25,6 @@ class SQLiteDatabase(DatabaseInterface):
         self.cursor = None
         self._tables_checked = False  # 标记是否已检查表结构
         self.connect()
-        self._ensure_tables_exist()  # 连接后立即检查表结构
     
     def connect(self) -> None:
         """建立数据库连接"""

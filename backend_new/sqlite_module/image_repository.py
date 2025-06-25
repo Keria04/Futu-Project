@@ -51,8 +51,7 @@ class SQLiteImageRepository(ImageRepositoryInterface):
         return images
     
     def get_images_by_dataset_name(self, dataset_name: str) -> List[Dict]:
-        """根据数据集名称获取图片"""
-        # 首先获取数据集ID
+        """根据数据集名称获取图片"""        # 首先获取数据集ID
         dataset_result = self.db.query_one("datasets", "id", where={"name": dataset_name})
         if not dataset_result:
             return []
@@ -63,10 +62,17 @@ class SQLiteImageRepository(ImageRepositoryInterface):
     def update_image(self, image_id: int, data: Dict[str, Any]) -> bool:
         """更新图片信息"""
         try:
+            # 添加调试信息
+            print(f"正在更新图片 {image_id}，数据: {list(data.keys())}")
+            
             rows_affected = self.db.update("images", data, where={"id": image_id})
+            
+            print(f"更新图片 {image_id}，影响行数: {rows_affected}")
             return rows_affected > 0
         except Exception as e:
-            print(f"更新图片失败: {str(e)}")
+            print(f"更新图片失败 - ID: {image_id}, 错误: {str(e)}")
+            import traceback
+            print(f"错误详情: {traceback.format_exc()}")
             return False
     
     def delete_image(self, image_id: int) -> bool:
@@ -147,3 +153,6 @@ class SQLiteImageRepository(ImageRepositoryInterface):
             "metadata_json": row[7] if len(row) > 7 else None,
             "feature_vector": row[8] if len(row) > 8 else None
         }
+
+# 为了向后兼容，提供别名
+ImageRepository = SQLiteImageRepository

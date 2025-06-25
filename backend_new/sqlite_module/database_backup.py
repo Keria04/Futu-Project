@@ -25,7 +25,6 @@ class SQLiteDatabase(DatabaseInterface):
         self.cursor = None
         self._tables_checked = False  # 标记是否已检查表结构
         self.connect()
-        self._ensure_tables_exist()  # 连接后立即检查表结构
     
     def connect(self) -> None:
         """建立数据库连接"""
@@ -37,8 +36,7 @@ class SQLiteDatabase(DatabaseInterface):
             self.conn = sqlite3.connect(self.db_path)
             self.cursor = self.conn.cursor()
             
-            # 启用外键约束
-            self.cursor.execute("PRAGMA foreign_keys = ON")
+            # 启用外键约束            self.cursor.execute("PRAGMA foreign_keys = ON")
         except Exception as e:
             print(f"数据库连接失败: {e}")
             raise e
@@ -127,8 +125,7 @@ class SQLiteDatabase(DatabaseInterface):
         except Exception as e:
             print(f"查询失败: {str(e)}")
             return None
-    
-    def query_multi(self, table: str, columns: str = '*', where: Optional[Dict] = None, 
+      def query_multi(self, table: str, columns: str = '*', where: Optional[Dict] = None, 
                    order_by: Optional[str] = None, limit: Optional[int] = None) -> List[Tuple]:
         """查询多条记录"""
         self._ensure_tables_exist()  # 确保表存在
@@ -145,7 +142,6 @@ class SQLiteDatabase(DatabaseInterface):
     
     def insert_one(self, table: str, data: Dict[str, Any]) -> int:
         """插入单条记录"""
-        self._ensure_tables_exist()  # 确保表存在
         try:
             keys = list(data.keys())
             values = list(data.values())
@@ -164,7 +160,6 @@ class SQLiteDatabase(DatabaseInterface):
         if not data_list:
             return 0
         
-        self._ensure_tables_exist()  # 确保表存在
         try:
             keys = list(data_list[0].keys())
             columns = ', '.join(keys)
@@ -181,7 +176,6 @@ class SQLiteDatabase(DatabaseInterface):
     
     def update(self, table: str, data: Dict[str, Any], where: Optional[Dict] = None) -> int:
         """更新记录"""
-        self._ensure_tables_exist()  # 确保表存在
         try:
             where_clause, params = self._build_where_clause(where)
             set_clause = ', '.join([f"{key} = ?" for key in data.keys()])
@@ -196,7 +190,6 @@ class SQLiteDatabase(DatabaseInterface):
     
     def delete(self, table: str, where: Dict[str, Any]) -> int:
         """删除记录"""
-        self._ensure_tables_exist()  # 确保表存在
         try:
             where_clause, params = self._build_where_clause(where)
             query = f"DELETE FROM {table} {where_clause}"

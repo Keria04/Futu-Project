@@ -1,0 +1,75 @@
+{
+  "environments": {
+    "development": {
+      "description": "开发环境配置",
+      "controller": {
+        "host": "0.0.0.0",
+        "port": 19198,
+        "debug": true
+      },
+      "compute": {
+        "workers": 2
+      },
+      "redis": {
+        "host": "localhost",
+        "port": 6379,
+        "db": 0,
+        "password": null
+      }
+    },
+    "production": {
+      "description": "生产环境配置",
+      "controller": {
+        "host": "0.0.0.0",
+        "port": 19198,
+        "debug": false
+      },
+      "compute": {
+        "workers": 4
+      },
+      "redis": {
+        "host": "redis.example.com",
+        "port": 6379,
+        "db": 0,
+        "password": "your_redis_password"
+      }
+    },
+    "cluster": {
+      "description": "集群环境配置",
+      "controller": {
+        "host": "0.0.0.0",
+        "port": 19198,
+        "debug": false
+      },
+      "compute": {
+        "workers": 8
+      },
+      "redis": {
+        "host": "redis-cluster.example.com",
+        "port": 6379,
+        "db": 0,
+        "password": "your_redis_password"
+      }
+    }
+  },
+  "services": {
+    "controller": {
+      "description": "控制端服务",
+      "dependencies": ["redis"],
+      "health_check": "/health",
+      "timeout": 30
+    },
+    "compute": {
+      "description": "计算端服务",
+      "dependencies": ["redis"],
+      "health_check": null,
+      "timeout": 60
+    },
+    "redis": {
+      "description": "Redis服务",
+      "dependencies": [],
+      "health_check": "ping",
+      "timeout": 5
+    }
+  }
+}

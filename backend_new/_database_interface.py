@@ -178,3 +178,37 @@ class DatabaseManagerInterface(ABC):
     def close(self) -> None:
         """关闭数据库连接"""
         pass
+
+
+# 工厂函数 - 创建数据库操作实例
+def get_dataset_repository():
+    """获取数据集仓库实例"""
+    from sqlite_module.dataset_repository import DatasetRepository
+    from sqlite_module.database import SQLiteDatabase
+    
+    # 创建数据库实例
+    db = SQLiteDatabase()
+    # 确保表结构存在
+    db._ensure_tables_exist()
+    return DatasetRepository(db)
+
+
+def get_image_repository():
+    """获取图片仓库实例"""
+    from sqlite_module.image_repository import ImageRepository
+    from sqlite_module.database import SQLiteDatabase
+    
+    # 创建数据库实例
+    db = SQLiteDatabase()
+    # 确保表结构存在
+    db._ensure_tables_exist()
+    return ImageRepository(db)
+
+
+def get_database():
+    """获取数据库实例"""
+    from sqlite_module.database import SQLiteDatabase
+    db = SQLiteDatabase()
+    # 确保表结构存在
+    db._ensure_tables_exist()
+    return db

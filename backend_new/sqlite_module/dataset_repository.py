@@ -118,3 +118,6 @@ class SQLiteDatasetRepository(DatasetRepositoryInterface):
             "image_count": row[5] if len(row) > 5 else 0,
             "size_bytes": row[6] if len(row) > 6 else 0
         }
+
+# 为了向后兼容，提供别名
+DatasetRepository = SQLiteDatasetRepository

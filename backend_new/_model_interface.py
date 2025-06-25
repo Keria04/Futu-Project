@@ -37,8 +37,16 @@ class ResNetStrategy(ModelStrategy):
     """ResNet模型策略"""
     
     def create_extractor(self, config: 'ModelConfig') -> 'FeatureExtractor':
-        from model_module import feature_extractor
-        return ResNetExtractorAdapter(feature_extractor(config._internal_config))
+        try:
+            from model_module.feature_extractor import feature_extractor
+        except ImportError:
+            # 如果相对导入失败，尝试绝对导入
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from model_module.feature_extractor import feature_extractor
+        
+        return ResNetExtractorAdapter(feature_extractor(config.internal_config))
     
     def get_default_config(self) -> Dict[str, Any]:
         return {
@@ -52,9 +60,16 @@ class EfficientNetStrategy(ModelStrategy):
     """EfficientNet模型策略（预留扩展）"""
     
     def create_extractor(self, config: 'ModelConfig') -> 'FeatureExtractor':
-        # 未来可以扩展其他模型
-        from model_module import feature_extractor
-        return EfficientNetExtractorAdapter(feature_extractor(config._internal_config))
+        try:
+            from model_module.feature_extractor import feature_extractor
+        except ImportError:
+            # 如果相对导入失败，尝试绝对导入
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from model_module.feature_extractor import feature_extractor
+        
+        return EfficientNetExtractorAdapter(feature_extractor(config.internal_config))
     
     def get_default_config(self) -> Dict[str, Any]:
         return {
@@ -166,13 +181,19 @@ class ModelConfig:
     @property
     def internal_config(self):
         """获取内部配置对象"""
-        if self._internal_config is None:
-            self._create_internal_config()
+        if self._internal_config is None:            self._create_internal_config()
         return self._internal_config
     
     def _create_internal_config(self):
         """创建内部配置对象"""
-        from model_module import ModelConfig as InternalConfig
+        try:
+            from model_module.feature_extractor import ModelConfig as InternalConfig
+        except ImportError:
+            # 如果相对导入失败，尝试绝对导入
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from model_module.feature_extractor import ModelConfig as InternalConfig
         
         self._internal_config = InternalConfig()
         self._internal_config.device = self.device
@@ -234,7 +255,7 @@ class BaseExtractorAdapter(FeatureExtractor):
     
     def get_feature_dimension(self) -> int:
         """获取特征维度"""
-        return self._extractor.get_dimension()
+        return self._extractor.dimension
     
     def get_config(self) -> ModelConfig:
         """获取配置信息"""

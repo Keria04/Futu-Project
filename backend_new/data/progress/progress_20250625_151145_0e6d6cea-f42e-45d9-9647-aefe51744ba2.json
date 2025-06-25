@@ -1,0 +1,25 @@
+{
+  "task_id": "0e6d6cea-f42e-45d9-9647-aefe51744ba2",
+  "progress": 100.0,
+  "status": "completed",
+  "message": "索引构建完成，共处理 251 个特征向量",
+  "start_time": "2025-06-25T15:11:45.624550",
+  "dataset_names": [
+    "1"
+  ],
+  "dataset_info": {
+    "1": {
+      "id": 5,
+      "image_count": 251,
+      "total_images": 251
+    }
+  },
+  "total_images": 251,
+  "distributed": false,
+  "updated_at": "2025-06-25T15:11:58.081518",
+  "index_files": [
+    "unified_1750835517.index"
+  ],
+  "total_features": 251,
+  "completed_at": "2025-06-25T15:11:58.074512"
+}

@@ -15,7 +15,7 @@ def serve_image(image_path):
     try:
         # 构建完整的图片路径
         # 这里假设图片存储在项目根目录下的datasets文件夹中
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
         
         # 分解路径
         path_parts = image_path.split('/')
