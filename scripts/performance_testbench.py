@@ -381,7 +381,7 @@ class PerformanceTestbench:
                 'times': times,
                 'images_processed': len(test_batch)
             }
-              print(f"    平均时间: {avg_time:.3f}s")
+            print(f"    平均时间: {avg_time:.3f}s")
             print(f"    吞吐量: {throughput:.2f} 图像/秒")
         
         self.results['concurrent'] = results

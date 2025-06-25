@@ -291,7 +291,7 @@ class ConfigOptimizer:
     def generate_optimization_report(self):
         """生成优化报告"""
         print("\n📋 生成优化报告...")
-          timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_dir = os.path.join("..", "performance_reports", f"optimization_{timestamp}")
         os.makedirs(report_dir, exist_ok=True)
         
