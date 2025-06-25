@@ -556,16 +556,17 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
                     dataset_features_array = np.array(dataset_features, dtype=np.float32)
                     dataset_ids_array = np.array(dataset_ids, dtype=np.int64)
                     
-                    index_name = f"{dataset_name}_{int(time.time())}.index"
+                    index_name = f"{dataset_id}.index"
                     build_index(dataset_features_array, dataset_ids_array, index_name)
                     
                     index_files.append(index_name)
                     total_features += len(dataset_features_array)
                     
-                    background_logger.info(f"数据集 {dataset_name} 索引构建完成: {index_name}")
+                    background_logger.info(f"数据集 {dataset_name} (ID: {dataset_id}) 索引构建完成: {index_name}")
         else:
-            # 统一构建索引
-            index_name = f"unified_{int(time.time())}.index"
+            # 统一构建索引 - 使用所有数据集ID组合命名
+            dataset_ids_str = "_".join(str(info['id']) for info in dataset_info.values())
+            index_name = f"{dataset_ids_str}.index"
             build_index(features_array, ids_array, index_name)
             
             index_files.append(index_name)
