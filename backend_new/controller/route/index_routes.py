@@ -41,11 +41,10 @@ def build_index():
             return jsonify({
                 "error": "参数错误",
                 "message": "dataset_names 不能为空"
-            }), 400
-        
-        # 生成任务ID和进度文件路径
+            }), 400        # 生成任务ID和进度文件路径
         task_id = str(uuid.uuid4())
-        progress_file = f"/progress/{datetime.now().strftime('%Y%m%d_%H%M%S')}_{task_id}.json"
+        progress_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{task_id}.json"
+        progress_file = progress_filename  # 直接使用文件名
         
         current_app.logger.info(f"开始索引构建任务: {task_id}, 数据集: {dataset_names}")
         
@@ -121,13 +120,12 @@ def build_index():
                 "error": "没有有效的图片文件",
                 "message": "请检查数据集中的图片文件路径"
             }), 400
-        
-        # 初始化进度数据
+          # 初始化进度数据
         progress_data = {
             "task_id": task_id,
-            "progress": 0.0,
+            "progress": 5.0,
             "status": "processing",
-            "message": f"开始处理 {len(all_images)} 张图片",
+            "message": f"任务已启动，准备处理 {len(all_images)} 张图片",
             "start_time": datetime.now().isoformat(),
             "dataset_names": dataset_names,
             "dataset_info": dataset_info,
@@ -153,10 +151,9 @@ def build_index():
             "msg": "索引构建任务已启动",
             "task_id": task_id,
             "total_images": len(all_images),
-            "dataset_info": dataset_info,
-            "progress": [
+            "dataset_info": dataset_info,            "progress": [
                 {
-                    "progress_file": progress_file
+                    "progress_file": f"/api/progress/{progress_filename}"
                 }
             ]
         }
@@ -177,18 +174,19 @@ def get_progress(progress_path):
     GET /api/progress/{progress_path}
     """
     try:
+        current_app.logger.info(f"查询进度文件: {progress_path}")
+        
         # 从进度文件中读取进度数据
         progress_data = _load_progress_data(progress_path)
         
         if not progress_data:
             # 如果没有找到进度文件，可能任务还在队列中或文件被删除
+            current_app.logger.warning(f"进度文件不存在: {progress_path}")
             return jsonify({
                 "error": "进度信息不存在",
                 "message": f"无法找到进度文件: {progress_path}"
-            }), 404
-        
-        # 如果任务已完成但进度数据较旧，尝试从Redis获取最新结果
-        if progress_data.get('status') in ['queued', 'building']:
+            }), 404# 如果任务已完成但进度数据较旧，尝试从Redis获取最新结果
+        if progress_data.get('status') in ['queued', 'processing']:
             task_id = progress_data.get('task_id')
             if task_id:
                 redis_client = get_redis_client()
@@ -199,7 +197,7 @@ def get_progress(progress_path):
                         if result.get('success'):
                             progress_data.update({
                                 'progress': 100.0,
-                                'status': 'completed',
+                                'status': 'done',
                                 'message': '索引构建完成',
                                 'completed_at': result.get('processed_at'),
                                 'result': result.get('result', {})
@@ -207,7 +205,7 @@ def get_progress(progress_path):
                         else:
                             progress_data.update({
                                 'progress': 0.0,
-                                'status': 'failed',
+                                'status': 'error',
                                 'message': f"索引构建失败: {result.get('error', '未知错误')}",
                                 'failed_at': result.get('processed_at'),
                                 'error': result.get('error')
@@ -229,18 +227,15 @@ def get_progress(progress_path):
         }), 500
 
 
-def _save_progress_data(progress_path: str, progress_data: Dict[str, Any]) -> None:
+def _save_progress_data(progress_filename: str, progress_data: Dict[str, Any]) -> None:
     """保存进度数据到文件"""
     try:
-        # 确保progress_path是相对路径且安全
-        if progress_path.startswith('/'):
-            progress_path = progress_path[1:]
-        
         # 构建完整的文件路径
         progress_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'progress')
         os.makedirs(progress_dir, exist_ok=True)
         
-        file_path = os.path.join(progress_dir, progress_path.replace('/', '_'))
+        # 直接使用文件名，不进行路径替换
+        file_path = os.path.join(progress_dir, progress_filename)
         
         # 保存数据
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -251,22 +246,19 @@ def _save_progress_data(progress_path: str, progress_data: Dict[str, Any]) -> No
         raise
 
 
-def _load_progress_data(progress_path: str) -> Dict[str, Any]:
+def _load_progress_data(progress_filename: str) -> Dict[str, Any]:
     """从文件加载进度数据"""
     try:
-        # 确保progress_path是相对路径且安全
-        if progress_path.startswith('/'):
-            progress_path = progress_path[1:]
-        
         # 构建完整的文件路径
         progress_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'progress')
-        file_path = os.path.join(progress_dir, progress_path.replace('/', '_'))
+        file_path = os.path.join(progress_dir, progress_filename)
         
         # 加载数据
         if os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         else:
+            current_app.logger.warning(f"进度文件不存在: {file_path}")
             return None
             
     except Exception as e:
@@ -333,8 +325,12 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
     
     try:
         background_logger.info(f"开始后台索引构建任务: {task_id}")
-          # 更新进度：开始特征提取
-        _update_progress(progress_file, 10.0, "extracting", "开始检查现有特征向量...")
+        
+        # 更新进度：任务开始
+        _update_progress(progress_file, 5.0, "processing", "索引构建任务已启动，正在初始化...")
+        
+        # 更新进度：开始特征提取
+        _update_progress(progress_file, 10.0, "processing", "开始检查现有特征向量...")
         
         # 检查数据库中哪些图片已经有特征向量
         from _database_interface import get_image_repository
@@ -382,10 +378,9 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
         redis_client = get_redis_client()
         if not redis_client:
             raise Exception("Redis客户端不可用")
-        
-        # 仅对需要提取特征的图片进行处理
+          # 仅对需要提取特征的图片进行处理
         if images_need_features:
-            _update_progress(progress_file, 15.0, "extracting", 
+            _update_progress(progress_file, 15.0, "processing", 
                            f"开始提取特征 - 需要计算: {total_need_calculation} 张，已有特征: {len(existing_features)} 张")
             
             for i in range(0, len(images_need_features), batch_size):
@@ -413,8 +408,7 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
                             if feature_result.get('success') and feature_result.get('features'):
                                 new_features.append(feature_result['features'])
                                 new_image_ids.append(batch_ids[j])
-                    
-                    # 清理结果
+                      # 清理结果
                     redis_client.delete_result(feature_task_id)
                     
                     # 更新进度
@@ -422,7 +416,7 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
                     calculation_progress = (current_batch_end / total_need_calculation) * 60.0 if total_need_calculation > 0 else 60.0
                     overall_progress = 15.0 + calculation_progress  # 15%-75%用于特征提取
                     
-                    _update_progress(progress_file, overall_progress, "extracting", 
+                    _update_progress(progress_file, overall_progress, "processing", 
                                    f"已计算 {len(new_features)}/{total_need_calculation} 张新图片的特征，总计 {len(existing_features) + len(new_features)}/{total_images} 张")
                     
                 except Exception as e:
@@ -431,7 +425,7 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
                     continue
         else:
             background_logger.info("所有图片都已有特征向量，跳过特征提取阶段")
-            _update_progress(progress_file, 75.0, "extracting", 
+            _update_progress(progress_file, 75.0, "processing", 
                            f"所有图片都已有特征向量，共 {len(existing_features)} 张")
         
         # 合并已有特征和新提取的特征
@@ -519,9 +513,8 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
                 background_logger.error(f"错误详情: {type(e).__name__}")
                 # 继续执行后续的索引构建流程
         else:
-            background_logger.info("没有新特征向量需要存储到数据库")        
-        # 更新进度：开始构建索引
-        _update_progress(progress_file, 80.0, "building", f"开始构建FAISS索引，使用 {len(all_features)} 个特征向量...")
+            background_logger.info("没有新特征向量需要存储到数据库")          # 更新进度：开始构建索引
+        _update_progress(progress_file, 80.0, "processing", f"开始构建FAISS索引，使用 {len(all_features)} 个特征向量...")
         
         # 转换为numpy数组
         features_array = np.array(all_features, dtype=np.float32)
@@ -580,7 +573,7 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
             f"(已有: {len(existing_features)} 个，新提取: {len(new_features)} 个)"
         )
         
-        _update_progress(progress_file, 100.0, "completed", completion_message, {
+        _update_progress(progress_file, 100.0, "done", completion_message, {
             'index_files': index_files,
             'total_features': total_features,
             'existing_features_count': len(existing_features),
@@ -597,9 +590,8 @@ def _build_index_background(task_id: str, images: List[Dict], dataset_info: Dict
         background_logger.error(f"索引构建后台任务失败: {e}")
         import traceback
         background_logger.error(traceback.format_exc())
-        
-        # 更新进度：失败
-        _update_progress(progress_file, 0.0, "failed", f"索引构建失败: {str(e)}", {
+          # 更新进度：失败
+        _update_progress(progress_file, 0.0, "error", f"索引构建失败: {str(e)}", {
             'error': str(e),
             'failed_at': datetime.now().isoformat()
         })
