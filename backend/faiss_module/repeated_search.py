@@ -12,26 +12,36 @@ from config import config
 # from faiss_utils.similarity_utils import distance_to_similarity_percent
 # from ..index_manage_module.api import get_dataset_image_features
 
-def repeated_search(index_id:int, threshold: float = 95.0, deduplicate: bool = False) -> List[List[int]]:
+def repeated_search(index_id, threshold: float = 95.0, deduplicate: bool = False) -> List[List[int]]:
     """
     寻找指定索引文件中的重复图片集合（基于相似度阈值）。
     参数:
-        index_name (str): 索引文件名（用于推断数据集名）
+        index_id: 数据集ID（int）或数据集名称（str）
         threshold (float): 相似度阈值（百分制），大于等于此值即认为是重复
         deduplicate (bool): 是否执行去重（仅保留每组中索引最小的项）
     返回:
         List[List[int]]: 每组为一组重复图像的ID集合（包括自己）
     """
+    # 如果传入的是字符串（数据集名称），需要转换为数据集ID
+    if isinstance(index_id, str):
+        from database_module.query import query_one
+        dataset = query_one("datasets", where={"name": index_id})
+        if dataset is None:
+            raise ValueError(f"数据集 {index_id} 不存在")
+        dataset_id = dataset[0]  # ID在第一个字段
+    else:
+        dataset_id = index_id
+    
     # 初始化 indexer
     dim = config.VECTOR_DIM
-    index_path = os.path.join(config.INDEX_FOLDER, f"{index_id}" + ".index")
+    index_path = os.path.join(config.INDEX_FOLDER, f"{dataset_id}.index")
     print("index_path:", index_path)
     indexer = FaissIndexer(dim=dim, index_path=index_path, use_IVF=True)
     indexer.load_index()
 
 
     # 获取原始图片特征（id, vector）
-    id_vector_pairs = get_dataset_image_features(index_id)
+    id_vector_pairs = get_dataset_image_features(dataset_id)
 
     if not id_vector_pairs:
         raise ValueError(f"未找到数据集 {index_path} 的图像特征")
