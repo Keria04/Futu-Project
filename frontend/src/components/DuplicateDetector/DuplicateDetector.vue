@@ -1,14 +1,12 @@
 <template>
   <div class="duplicate-detector">
     <h2 class="section-title">查找重复图片</h2>
-    
     <div class="detector-controls">
       <DatasetManager
         :dataset-names="singleDataset"
         @add-dataset="() => {}"
         @remove-dataset="() => {}"
       />
-      
       <div class="threshold-control">
         <label for="threshold">相似度阈值:</label>
         <input 
@@ -22,7 +20,6 @@
         />
         <span class="threshold-unit">%</span>
       </div>
-      
       <button 
         class="btn btn-detect" 
         :disabled="loading"
@@ -31,13 +28,12 @@
         {{ loading ? '查重中...' : '查找重复图片' }}
       </button>
     </div>
-
+    <ProgressBar :progress="buildProgress" :is-visible="showProgressBar" />
     <MessageDisplay 
       v-if="message"
       :message="message"
       :type="messageType"
     />
-
     <DuplicateResults
       v-if="duplicateGroups.length > 0"
       :groups="duplicateGroups"
@@ -46,25 +42,23 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { duplicateApi, datasetApi } from '../../services/api.js'
+import { ref } from 'vue'
+import { duplicateApi, indexApi } from '../../services/api.js'
 import { useLoading } from '../../composables/useLoading.js'
 import DatasetManager from '../Common/DatasetManager.vue'
 import MessageDisplay from '../Common/MessageDisplay.vue'
 import DuplicateResults from './DuplicateResults.vue'
+import ProgressBar from '../Common/ProgressBar.vue'
 
-// 状态管理
 const { loading, message, startLoading, stopLoading } = useLoading()
 const messageType = ref('info')
-
-// 单个数据集名称（重复检测通常针对单个数据集）
 const singleDataset = ref([''])
 const threshold = ref(95)
 const duplicateGroups = ref([])
+const buildProgress = ref(0)
+const showProgressBar = ref(false)
 
-/**
- * 查找重复图片
- */
+// 查重时自动构建索引（如未构建）并查重
 async function findDuplicates() {
   const datasetName = singleDataset.value[0]?.trim()
   if (!datasetName) {
@@ -72,39 +66,81 @@ async function findDuplicates() {
     messageType.value = 'warning'
     return
   }
-
-  startLoading('正在查找重复图片...')
+  startLoading('正在构建索引...')
   duplicateGroups.value = []
   messageType.value = 'info'
-
+  showProgressBar.value = true
+  buildProgress.value = 0
+  let progressUrl = ''
   try {
-    // 获取数据集ID
-    const datasetResponse = await datasetApi.getDatasetId(datasetName)
-    const datasetId = datasetResponse.data.id
-
-    // 查找重复图片
-    const duplicateResponse = await duplicateApi.findDuplicates(
-      datasetId,
-      threshold.value,
-      false
-    )
-
-    duplicateGroups.value = duplicateResponse.data.groups || []
-    
+    // 先尝试构建索引（如已构建会直接返回完成）
+    const buildResp = await indexApi.buildIndex([datasetName], false)
+    if (buildResp.data.progress && buildResp.data.progress.length > 0) {
+      progressUrl = buildResp.data.progress[0].progress_file
+      await pollIndexProgress(progressUrl)
+    } else {
+      showProgressBar.value = false
+    }
+  } catch (e) {
+    showProgressBar.value = false
+    message.value = '索引构建失败，请重试'
+    messageType.value = 'error'
+    stopLoading()
+    return
+  }
+  showProgressBar.value = false
+  // 索引构建完成后查重
+  startLoading('正在查重...')
+  try {
+    const resp = await duplicateApi.findDuplicates(datasetName, threshold.value)
+    duplicateGroups.value = resp.data.groups || []
     if (duplicateGroups.value.length === 0) {
-      message.value = '未检测到重复图片'
+      message.value = '未找到重复图片'
       messageType.value = 'info'
     } else {
       message.value = `找到 ${duplicateGroups.value.length} 组重复图片`
       messageType.value = 'success'
     }
   } catch (error) {
-    message.value = '查重失败，请检查数据集名称是否正确'
+    message.value = '查重失败，请重试'
     messageType.value = 'error'
-    console.error('Duplicate detection error:', error)
+    console.error('Duplicate error:', error)
   } finally {
     stopLoading()
   }
+}
+
+async function pollIndexProgress(progressUrl) {
+  return new Promise((resolve, reject) => {
+    let lastProgress = 0
+    const timer = setInterval(async () => {
+      try {
+        const resp = await indexApi.getProgress(progressUrl)
+        if (typeof resp.data.progress === 'number') {
+          buildProgress.value = resp.data.progress
+          lastProgress = resp.data.progress
+        }
+        if (resp.data.status === 'done') {
+          clearInterval(timer)
+          buildProgress.value = 100
+          resolve()
+        } else if (resp.data.status === 'error') {
+          clearInterval(timer)
+          reject(new Error('索引构建失败'))
+        } else if (resp.data.status === 'pending' && lastProgress === 0) {
+          setTimeout(() => {
+            if (buildProgress.value === 0) {
+              clearInterval(timer)
+              reject(new Error('索引构建超时'))
+            }
+          }, 10000)
+        }
+      } catch (e) {
+        clearInterval(timer)
+        reject(e)
+      }
+    }, 1000)
+  })
 }
 </script>
 
@@ -164,43 +200,101 @@ async function findDuplicates() {
 .btn {
   border: none;
   border-radius: 8px;
-  padding: 0.6rem 1.2rem;
-  font-size: 1rem;
-  font-weight: 500;
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  align-self: flex-start;
 }
 
 .btn-detect {
-  background: linear-gradient(90deg, #ff6b6b 0%, #ee5a52 100%);
+  background: linear-gradient(90deg, #2d8cf0 0%, #42b983 100%);
   color: white;
+  min-width: 160px;
 }
 
 .btn-detect:hover:not(:disabled) {
-  background: linear-gradient(90deg, #ee5a52 0%, #ff6b6b 100%);
+  background: linear-gradient(90deg, #42b983 0%, #2d8cf0 100%);
   transform: translateY(-1px);
 }
 
 .btn:disabled {
-  background: #ffb3b3;
+  background: #b5e2d4;
   cursor: not-allowed;
   opacity: 0.7;
   transform: none;
 }
 
-@media (max-width: 768px) {
-  .detector-controls {
-    align-items: stretch;
-  }
-  
-  .threshold-control {
-    justify-content: space-between;
-  }
-  
-  .btn {
-    align-self: stretch;
-  }
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.custom-upload-box {
+  width: 100%;
+  min-height: 180px;
+  background: #f8fafc;
+  border: 2px dashed #e0e0e0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  cursor: pointer;
+  position: relative;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s;
+}
+.custom-upload-box:hover {
+  border-color: #42b983;
+}
+.file-input {
+  display: none;
+}
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.upload-text {
+  color: #888;
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+.upload-link {
+  color: #42b983;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.upload-tip {
+  color: #bbb;
+  font-size: 0.95rem;
+  margin-top: 0.2rem;
+}
+.preview-img-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview-img-full {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  object-fit: contain;
+  background: #fff;
 }
 </style>

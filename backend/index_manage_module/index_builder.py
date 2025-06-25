@@ -32,6 +32,18 @@ class IndexBuilder:
         self.id_map = {}
         self.distributed_available = getattr(config, "DISTRIBUTED_AVAILABLE", False)
 
+    def _write_progress_to_file(self, progress_file, current, total):
+        """将当前进度写入文件"""
+        if progress_file:
+            try:
+                percent = int(current / total * 100) if total > 0 else 100
+                progress_bar = "█" * (percent // 10) + "▏" * (1 if percent % 10 >= 5 else 0)
+                progress_bar = progress_bar.ljust(10)
+                with open(progress_file, "w", encoding="utf-8") as f:
+                    f.write(f"特征提取: {percent:3d}%|{progress_bar}| {current}/{total}\n")
+            except Exception as e:
+                print(f"写入进度文件时出错: {e}")
+
     # ---------- 索引构建主流程 ----------
     def build(self, progress_file=None):
         # --- 1. 读取图片文件和描述信息 ---
@@ -81,7 +93,11 @@ class IndexBuilder:
         pbar = None
         if progress_file:
             if total_imgs > 0:
-                pbar = tqdm(total=total_imgs, desc="特征提取", file=open(progress_file, "w", encoding="utf-8"), ncols=80)
+                # 先清空文件
+                with open(progress_file, "w", encoding="utf-8") as f:
+                    f.write("")  # 清空文件
+                # 使用标准输出的tqdm，手动写入进度到文件
+                pbar = tqdm(total=total_imgs, desc="特征提取", ncols=80)
             else:
                 # 没有新图片需要处理时，直接写入完成状态
                 with open(progress_file, "w", encoding="utf-8") as f:
@@ -118,14 +134,24 @@ class IndexBuilder:
                         embedding = np.array(embedding_list, dtype='float32').reshape(1, -1)
                         self.id_map[idx] = fname
                         features.append(embedding.squeeze())
-                        if pbar: pbar.update(1)
+                        if pbar: 
+                            pbar.update(1)
+                            # 更新进度文件
+                            self._write_progress_to_file(progress_file, pbar.n, pbar.total)
                     except Exception as e:
                         print(f"处理图片 {fname} 时发生错误: {e}")
-                        if pbar: pbar.update(1)
+                        if pbar: 
+                            pbar.update(1)
+                            # 更新进度文件
+                            self._write_progress_to_file(progress_file, pbar.n, pbar.total)
                         continue
                 print("已采用远程特征提取。")
                 if pbar:
                     pbar.close()
+                    # 手动写入最终进度到文件
+                    if progress_file:
+                        with open(progress_file, "w", encoding="utf-8") as f:
+                            f.write(f"特征提取: 100%|██████████| {total_imgs}/{total_imgs} [完成]\n")
                     # 在进度文件末尾添加完成标记
                     with open(progress_file, "a", encoding="utf-8") as f:
                         f.write("索引构建完成\n")
@@ -144,10 +170,17 @@ class IndexBuilder:
                     except Exception as e:
                         print(f"[跳过] 图片 {fname} 处理失败: {e}")
                         continue
-                    if pbar: pbar.update(1)
+                    if pbar: 
+                        pbar.update(1)
+                        # 更新进度文件
+                        self._write_progress_to_file(progress_file, pbar.n, pbar.total)
                 print("已采用本地特征提取。")
             if pbar:
                 pbar.close()
+                # 手动写入最终进度到文件
+                if progress_file:
+                    with open(progress_file, "w", encoding="utf-8") as f:
+                        f.write(f"特征提取: 100%|██████████| {total_imgs}/{total_imgs} [完成]\n")
                 # 在进度文件末尾添加完成标记
                 with open(progress_file, "a", encoding="utf-8") as f:
                     f.write("索引构建完成\n")

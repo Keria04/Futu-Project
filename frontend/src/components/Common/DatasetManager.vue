@@ -6,12 +6,19 @@
         :key="idx" 
         class="dataset-item"
       >
-        <input
-          class="dataset-input"
-          type="text"
-          v-model="datasetNames[idx]"
-          :placeholder="`请输入数据集名称${datasetNames.length > 1 ? '（可多选）' : ''}`"
-        />
+        <div style="display: flex; width: 100%; gap: 0.5rem; align-items: center;">
+          <input
+            class="dataset-input"
+            type="text"
+            v-model="datasetNames[idx]"
+            :placeholder="`请输入数据集名称${datasetNames.length > 1 ? '（可多选）' : ''}`"
+            style="flex: 1;"
+          />
+          <select v-if="allDatasets.length" v-model="datasetNames[idx]" class="dataset-select">
+            <option value="" disabled>请选择</option>
+            <option v-for="ds in allDatasets" :key="ds.id" :value="ds.id">{{ ds.id }}</option>
+          </select>
+        </div>
         <button 
           v-if="datasetNames.length > 1" 
           class="btn btn-remove" 
@@ -28,6 +35,9 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
+import { datasetApi } from '@/services/api'
+
 defineProps({
   datasetNames: {
     type: Array,
@@ -36,6 +46,17 @@ defineProps({
 })
 
 defineEmits(['add-dataset', 'remove-dataset'])
+
+const allDatasets = ref([])
+
+onMounted(async () => {
+  try {
+    const res = await datasetApi.getDatasets()
+    allDatasets.value = res.data.datasets || []
+  } catch (e) {
+    allDatasets.value = []
+  }
+})
 </script>
 
 <style scoped>
@@ -95,5 +116,14 @@ defineEmits(['add-dataset', 'remove-dataset'])
 
 .btn-remove:hover {
   background: #ff5252;
+}
+
+.dataset-select {
+  min-width: 100px;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  margin-left: 0.3rem;
 }
 </style>
