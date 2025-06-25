@@ -33,6 +33,8 @@
 
 - ✅ 前后端分离架构：Vue + Flask
 
+- ✅ 通过Redis实现集群运算与负载均衡
+
 ## 🏗️ 技术架构
 
 | 模块    | 技术栈说明                           |
@@ -41,6 +43,7 @@
 | 后端    | Flask (Python)                       |
 | AI 模块 | PyTorch（ResNet-50）+ Faiss 向量检索 |
 | 数据库  | SQLite 3（轻量级本地数据库）         |
+| 负载均衡  | Redis+celery                      |
 
 ## 文件结构
 
