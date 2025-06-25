@@ -1,6 +1,6 @@
 #  浮图（Futu） - 在线以图搜图平台
 
-<img src="/Users/caiyile/Desktop/Typoya图库/浮图logo.png" alt="浮图logo" style="zoom:50%;" />
+![浮图logo](./浮图logo.png)
 
 ##  🌟 项目简介
 
