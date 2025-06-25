@@ -53,22 +53,30 @@ def search_image():
         
         # TODO: 实现图片搜索逻辑
         # 这里应该调用图片搜索服务
-        
-        # 暂时返回模拟搜索结果
+          # 暂时返回模拟搜索结果
         mock_results = [
             {
                 "image_path": "/show_image/datasets/1/circles_10.jpg",
-                "similarity": 0.95,
+                "img_url": "/show_image/datasets/1/circles_10.jpg",
+                "fname": "circles_10.jpg",
+                "idx": 1,
+                "similarity": 95.0,
                 "dataset": "dataset1"
             },
             {
-                "image_path": "/show_image/datasets/1/circles_11.jpg", 
-                "similarity": 0.89,
+                "image_path": "/show_image/datasets/1/circles_11.jpg",
+                "img_url": "/show_image/datasets/1/circles_11.jpg", 
+                "fname": "circles_11.jpg",
+                "idx": 2,
+                "similarity": 89.0,
                 "dataset": "dataset1"
             },
             {
                 "image_path": "/show_image/datasets/2/sample_01.jpg",
-                "similarity": 0.82,
+                "img_url": "/show_image/datasets/2/sample_01.jpg",
+                "fname": "sample_01.jpg",
+                "idx": 3,
+                "similarity": 82.0,
                 "dataset": "dataset2"
             }
         ]

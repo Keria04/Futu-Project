@@ -31,8 +31,7 @@ def find_duplicates():
         
         # TODO: 实现重复图片检测逻辑
         # 这里应该调用重复检测服务
-        
-        # 暂时返回模拟重复检测结果
+          # 暂时返回模拟重复检测结果
         mock_groups = [
             {
                 "representative": "/show_image/datasets/1/circles_10.jpg",
@@ -41,7 +40,26 @@ def find_duplicates():
                     "/show_image/datasets/1/circles_25.jpg"
                 ],
                 "similarity_scores": [0.96, 0.92],
-                "group_size": 3
+                "group_size": 3,
+                "representative_info": {
+                    "fname": "circles_10.jpg",
+                    "idx": 10,
+                    "dataset": "dataset1"
+                },
+                "duplicates_info": [
+                    {
+                        "fname": "circles_1114.jpg",
+                        "idx": 1114,
+                        "dataset": "dataset1",
+                        "img_url": "/show_image/datasets/1/circles_1114.jpg"
+                    },
+                    {
+                        "fname": "circles_25.jpg", 
+                        "idx": 25,
+                        "dataset": "dataset1",
+                        "img_url": "/show_image/datasets/1/circles_25.jpg"
+                    }
+                ]
             },
             {
                 "representative": "/show_image/datasets/1/circles_20.jpg",
@@ -49,7 +67,20 @@ def find_duplicates():
                     "/show_image/datasets/1/circles_30.jpg"
                 ],
                 "similarity_scores": [0.89],
-                "group_size": 2
+                "group_size": 2,
+                "representative_info": {
+                    "fname": "circles_20.jpg",
+                    "idx": 20,
+                    "dataset": "dataset1"
+                },
+                "duplicates_info": [
+                    {
+                        "fname": "circles_30.jpg",
+                        "idx": 30,
+                        "dataset": "dataset1", 
+                        "img_url": "/show_image/datasets/1/circles_30.jpg"
+                    }
+                ]
             },
             {
                 "representative": "/show_image/datasets/2/sample_01.jpg",
@@ -58,7 +89,26 @@ def find_duplicates():
                     "/show_image/datasets/3/image_001.jpg"
                 ],
                 "similarity_scores": [0.94, 0.87],
-                "group_size": 3
+                "group_size": 3,
+                "representative_info": {
+                    "fname": "sample_01.jpg",
+                    "idx": 1,
+                    "dataset": "dataset2"
+                },
+                "duplicates_info": [
+                    {
+                        "fname": "sample_02.jpg",
+                        "idx": 2,
+                        "dataset": "dataset2",
+                        "img_url": "/show_image/datasets/2/sample_02.jpg"
+                    },
+                    {
+                        "fname": "image_001.jpg",
+                        "idx": 1,
+                        "dataset": "dataset3",
+                        "img_url": "/show_image/datasets/3/image_001.jpg"
+                    }
+                ]
             }
         ]
         

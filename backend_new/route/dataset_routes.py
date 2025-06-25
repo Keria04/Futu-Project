@@ -23,8 +23,7 @@ def get_datasets():
     try:
         # TODO: 从数据库获取真实的数据集信息
         # 这里应该调用数据集管理服务
-        
-        # 暂时返回模拟数据
+          # 暂时返回模拟数据
         mock_datasets = [
             {
                 "id": 1,
@@ -32,6 +31,7 @@ def get_datasets():
                 "description": "第一个测试数据集",
                 "image_count": 150,
                 "created_at": "2025-01-01T00:00:00Z",
+                "first_image_url": "/show_image/datasets/1/circles_10.jpg",
                 "sample_images": [
                     "/show_image/datasets/1/circles_10.jpg",
                     "/show_image/datasets/1/circles_11.jpg",
@@ -44,6 +44,7 @@ def get_datasets():
                 "description": "第二个测试数据集",
                 "image_count": 89,
                 "created_at": "2025-01-15T10:30:00Z",
+                "first_image_url": "/show_image/datasets/2/sample_01.jpg",
                 "sample_images": [
                     "/show_image/datasets/2/sample_01.jpg",
                     "/show_image/datasets/2/sample_02.jpg"
@@ -55,6 +56,7 @@ def get_datasets():
                 "description": "第三个测试数据集", 
                 "image_count": 234,
                 "created_at": "2025-02-01T14:20:00Z",
+                "first_image_url": "/show_image/datasets/3/image_001.jpg",
                 "sample_images": [
                     "/show_image/datasets/3/image_001.jpg",
                     "/show_image/datasets/3/image_002.jpg",

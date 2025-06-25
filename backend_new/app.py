@@ -1,7 +1,7 @@
 """
 浮图项目 Flask 后端应用主文件
 """
-from flask import Flask
+from flask import Flask, request
 import os
 from config import config
 
@@ -24,14 +24,23 @@ def create_app(config_name=None):
       # 配置CORS
     if CORS_AVAILABLE:
         CORS(app, origins=app.config['CORS_ORIGINS'])
-    else:
-        # 如果没有 CORS 库，手动添加 CORS 头
+    else:        # 如果没有 CORS 库，手动添加 CORS 头
         @app.after_request
         def after_request(response):
             response.headers.add('Access-Control-Allow-Origin', 'http://localhost:19197')
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
             response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
             return response
+        
+        @app.before_request
+        def handle_preflight():
+            if request.method == "OPTIONS":
+                from flask import make_response
+                response = make_response()
+                response.headers.add("Access-Control-Allow-Origin", "http://localhost:19197")
+                response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization")
+                response.headers.add('Access-Control-Allow-Methods', "GET,PUT,POST,DELETE,OPTIONS")
+                return response
     
     # 注册蓝图
     from route.index_routes import index_bp

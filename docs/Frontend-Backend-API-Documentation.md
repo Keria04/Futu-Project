@@ -370,3 +370,70 @@ UI更新 ← 响应数据 ← 代理响应 ← 结果返回
 **文档版本**: v1.0  
 **最后更新**: 2025年6月25日  
 **维护者**: 浮图项目开发团队
+
+## 问题排查：为什么没有自动调用show_image
+
+### 问题描述
+前端组件无法正常显示图片，`show_image` 路由没有被自动调用。
+
+### 根本原因分析
+
+1. **字段名不匹配**
+   - 后端API返回的字段名为 `image_path`
+   - 前端SearchResults组件期望的字段名为 `img_url`
+   - 导致图片URL为空或undefined
+
+2. **缺少URL处理函数**
+   - 前端组件没有调用 `fixImageUrl` 函数处理相对路径
+   - 图片路径没有被转换为完整的URL
+
+3. **数据结构不完整**
+   - 后端返回的搜索结果缺少必要的字段（如 `fname`, `idx` 等）
+
+### 解决方案
+
+#### 1. 后端修复
+```javascript
+// 修改搜索路由返回完整的数据结构
+{
+  "image_path": "/show_image/datasets/1/circles_10.jpg",
+  "img_url": "/show_image/datasets/1/circles_10.jpg",  // 添加此字段
+  "fname": "circles_10.jpg",                            // 添加文件名
+  "idx": 1,                                            // 添加索引
+  "similarity": 95.0,                                  // 相似度转换为百分比
+  "dataset": "dataset1"
+}
+```
+
+#### 2. 前端修复
+```vue
+<!-- 在 SearchResults.vue 中添加 fixImageUrl 函数 -->
+<img :src="fixImageUrl(item.img_url || item.image_path)" />
+
+<script setup>
+function fixImageUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `http://localhost:19198${url}`
+}
+</script>
+```
+
+#### 3. 路由配置验证
+- 确保Flask应用正确注册了 `static_bp` 蓝图
+- 确保 `show_image` 路由没有 `/api` 前缀
+- 确保前端Vite代理配置正确
+
+### 测试验证
+
+运行测试脚本验证修复效果：
+```bash
+cd backend_new
+python test_image_routes.py
+```
+
+### 预期结果
+- ✅ 图片URL正确生成：`http://localhost:19198/show_image/datasets/1/circles_10.jpg`
+- ✅ 前端能正常显示搜索结果图片
+- ✅ 数据集概览页面预览图正常显示
+- ✅ 重复检测结果图片正常显示

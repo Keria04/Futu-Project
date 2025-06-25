@@ -7,10 +7,9 @@
         v-for="(item, index) in results" 
         :key="`${item.idx}-${item.dataset}-${index}`"
         class="result-item"
-      >
-        <div class="result-image">
+      >        <div class="result-image">
           <img 
-            :src="item.img_url" 
+            :src="fixImageUrl(item.img_url || item.image_path)" 
             :alt="item.fname"
             @error="handleImageError"
           />
@@ -55,6 +54,16 @@ defineProps({
     required: true
   }
 })
+
+/**
+ * 修正图片URL
+ */
+function fixImageUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  // 自动补全为后端端口
+  return `http://localhost:19198${url}`
+}
 
 function handleImageError(event) {
   event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPgogIDx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+5Zu+54mH5Yqg6L295aSx6LSlPC90ZXh0Pgo8L3N2Zz4K'
