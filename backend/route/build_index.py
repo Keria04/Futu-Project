@@ -12,12 +12,12 @@ from index_manage_module.index_builder import IndexBuilder
 progress_dir = "data/progress"
 os.makedirs(progress_dir, exist_ok=True)
 
-# 构建索引接口（支持进度条）
 @build_index_bp.route('/build_index', methods=['POST'])
 def build_index():
     data = request.get_json()
     dataset_names = data.get('dataset_names', [])
-    distributed = data.get('distributed', False)
+    # distributed = data.get('distributed', True)
+    distributed=True  # 默认启用分布式
     results = []
     for ds_name in dataset_names:
         dataset_dir = os.path.join("datasets", ds_name)
@@ -90,7 +90,7 @@ def api_build_index():
         single_name = data.get("dataset_name")
         if single_name:
             dataset_names = [single_name]
-    distributed = data.get("distributed", False)
+    distributed = data.get("distributed", True)  # 默认启用分布式
     if not dataset_names:
         print("缺少数据集名称")
         return jsonify({"msg": "缺少数据集名称"}), 400

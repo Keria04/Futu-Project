@@ -4,7 +4,6 @@ import numpy as np
 from PIL import Image
 from model_module.feature_extractor import feature_extractor
 from faiss_module.build_index import build_index
-from worker import generate_embeddings_task
 from database_module.modify import insert_one, insert_multi, update
 from database_module.query import query_one
 from config import config
@@ -12,6 +11,23 @@ import datetime
 import csv
 import json
 from tqdm import tqdm
+import logging
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def check_distributed_availability():
+    """检查分布式计算是否可用"""
+    try:
+        from worker import is_distributed_available
+        return is_distributed_available()
+    except ImportError:
+        logger.warning("无法导入worker模块，分布式计算不可用")
+        return False
+    except Exception as e:
+        logger.error(f"检查分布式可用性时出错: {e}")
+        return False
 
 # ========================
 # 索引构建核心类定义
@@ -30,7 +46,18 @@ class IndexBuilder:
         self.ids_path = getattr(config, "ID_PATH", "ids.npy")
         self.index_path = getattr(config, "INDEX_PATH", "index.bin")
         self.id_map = {}
-        self.distributed_available = getattr(config, "DISTRIBUTED_AVAILABLE", False)
+        
+        # 检查分布式计算是否真正可用
+        self.distributed_available = False
+        if distributed:
+            logger.info("检查分布式计算可用性...")
+            self.distributed_available = check_distributed_availability()
+            if self.distributed_available:
+                logger.info("✅ 分布式计算可用，将使用Redis+Celery进行特征提取")
+            else:
+                logger.warning("⚠️  分布式计算不可用，将回退到本地计算")
+        else:
+            logger.info("未启用分布式计算，使用本地特征提取")
 
     def _write_progress_to_file(self, progress_file, current, total):
         """将当前进度写入文件"""
@@ -42,14 +69,13 @@ class IndexBuilder:
                 with open(progress_file, "w", encoding="utf-8") as f:
                     f.write(f"特征提取: {percent:3d}%|{progress_bar}| {current}/{total}\n")
             except Exception as e:
-                print(f"写入进度文件时出错: {e}")
-
-    # ---------- 索引构建主流程 ----------
+                print(f"写入进度文件时出错: {e}")    # ---------- 索引构建主流程 ----------
     def build(self, progress_file=None):
         # --- 1. 读取图片文件和描述信息 ---
         img_files = [f for f in os.listdir(self.dataset_dir) if f.lower().endswith(self.img_exts) and f != 'query.jpg']
         desc_map = {}
         csv_files = [f for f in os.listdir(self.dataset_dir) if f.lower().endswith('.csv')]
+        
         if csv_files:
             desc_csv_path = os.path.join(self.dataset_dir, csv_files[0])
             with open(desc_csv_path, newline='', encoding='utf-8') as csvfile:
@@ -64,11 +90,14 @@ class IndexBuilder:
                         desc_dict = {header[i]: row[i+1] if i+1 < len(row) else "" for i in range(len(header))}
                         desc_json = json.dumps(desc_dict, ensure_ascii=False)
                         desc_map[fname] = desc_json
+        
         if not img_files:
             print(f"数据集目录 {self.dataset_dir} 下没有可用图片文件")
             raise ValueError(f"数据集目录 {self.dataset_dir} 下没有可用图片文件")
+        
         features = []
         image_records = []
+        processed_fnames = []
         self.id_map.clear()
 
         # --- 1.5 读取数据库图片路径，处理新增和已删除图片 ---
@@ -110,71 +139,58 @@ class IndexBuilder:
             from database_module.modify import delete
             for img_id in deleted_db_ids:
                 delete("images", {"id": img_id})
-            print(f"已从数据库删除 {len(deleted_db_ids)} 条已不存在图片的记录。")
-
-        # --- 2. 特征提取（本地或分布式） ---
+            print(f"已从数据库删除 {len(deleted_db_ids)} 条已不存在图片的记录。")        # --- 2. 特征提取（本地或分布式） ---
         if img_files_to_process:
             if self.distributed and self.distributed_available:
-                print("尝试使用远程特征提取构建索引...")
-                task_futures = []
-                for idx, fname in enumerate(img_files_to_process):
-                    path = os.path.join(self.dataset_dir, fname)
-                    with open(path, 'rb') as f:
-                        img_data = f.read()
-                    img_data_b64 = base64.b64encode(img_data).decode('utf-8')
-                    try:
-                        future = generate_embeddings_task.delay(img_data_b64)
-                        task_futures.append((idx, fname, future))
-                    except Exception as e:
-                        print(f"远程任务提交失败: {e}")
-                        return False
-                for idx, fname, future in task_futures:
-                    try:
-                        embedding_list = future.get(timeout=60)
-                        embedding = np.array(embedding_list, dtype='float32').reshape(1, -1)
-                        self.id_map[idx] = fname
-                        features.append(embedding.squeeze())
-                        if pbar: 
-                            pbar.update(1)
-                            # 更新进度文件
-                            self._write_progress_to_file(progress_file, pbar.n, pbar.total)
-                    except Exception as e:
-                        print(f"处理图片 {fname} 时发生错误: {e}")
-                        if pbar: 
-                            pbar.update(1)
-                            # 更新进度文件
-                            self._write_progress_to_file(progress_file, pbar.n, pbar.total)
-                        continue
-                print("已采用远程特征提取。")
-                if pbar:
-                    pbar.close()
-                    # 手动写入最终进度到文件
-                    if progress_file:
-                        with open(progress_file, "w", encoding="utf-8") as f:
-                            f.write(f"特征提取: 100%|██████████| {total_imgs}/{total_imgs} [完成]\n")
-                    # 在进度文件末尾添加完成标记
-                    with open(progress_file, "a", encoding="utf-8") as f:
-                        f.write("索引构建完成\n")
+                logger.info("使用分布式特征提取...")
+                try:
+                    # 动态导入worker任务
+                    from worker import generate_embeddings_task
+                    
+                    task_futures = []
+                    for idx, fname in enumerate(img_files_to_process):
+                        path = os.path.join(self.dataset_dir, fname)
+                        with open(path, 'rb') as f:
+                            img_data = f.read()
+                        img_data_b64 = base64.b64encode(img_data).decode('utf-8')
+                        try:
+                            future = generate_embeddings_task.delay(img_data_b64)
+                            task_futures.append((idx, fname, future))
+                        except Exception as e:
+                            logger.error(f"提交远程任务失败: {e}")
+                            # 如果任务提交失败，回退到本地计算
+                            logger.warning("分布式任务提交失败，回退到本地计算")
+                            self._process_images_locally(img_files_to_process, features, processed_fnames, pbar, progress_file, total_imgs)
+                            break
+                    else:
+                        # 处理所有远程任务结果
+                        for idx, fname, future in task_futures:
+                            try:
+                                embedding_list = future.get(timeout=120)  # 增加超时时间
+                                embedding = np.array(embedding_list, dtype='float32').reshape(1, -1)
+                                self.id_map[idx] = fname
+                                features.append(embedding.squeeze())
+                                processed_fnames.append(fname)
+                                if pbar: 
+                                    pbar.update(1)
+                                    self._write_progress_to_file(progress_file, pbar.n, pbar.total)
+                            except Exception as e:
+                                logger.error(f"处理图片 {fname} 的远程任务失败: {e}")
+                                if pbar: 
+                                    pbar.update(1)
+                                    self._write_progress_to_file(progress_file, pbar.n, pbar.total)
+                                continue
+                        logger.info("分布式特征提取完成")
+                        
+                except ImportError:
+                    logger.warning("无法导入worker模块，回退到本地计算")
+                    self._process_images_locally(img_files_to_process, features, processed_fnames, pbar, progress_file, total_imgs)
+                except Exception as e:
+                    logger.error(f"分布式计算过程中出错: {e}，回退到本地计算")
+                    self._process_images_locally(img_files_to_process, features, processed_fnames, pbar, progress_file, total_imgs)
             else:
-                print("采用本地特征提取构建索引...")
-                embedder = feature_extractor()
-                processed_fnames = []
-                for idx, fname in enumerate(img_files_to_process):
-                    path = os.path.join(self.dataset_dir, fname)
-                    try:
-                        img = Image.open(path)
-                        feat = embedder.calculate(img)
-                        self.id_map[idx] = fname
-                        features.append(feat)
-                        processed_fnames.append(fname)
-                    except Exception as e:
-                        print(f"[跳过] 图片 {fname} 处理失败: {e}")
-                        continue
-                    if pbar: 
-                        pbar.update(1)
-                        # 更新进度文件
-                        self._write_progress_to_file(progress_file, pbar.n, pbar.total)
-                print("已采用本地特征提取。")
+                logger.info("使用本地特征提取...")
+                self._process_images_locally(img_files_to_process, features, processed_fnames, pbar, progress_file, total_imgs)
             if pbar:
                 pbar.close()
                 # 手动写入最终进度到文件
@@ -185,22 +201,22 @@ class IndexBuilder:
                 with open(progress_file, "a", encoding="utf-8") as f:
                     f.write("索引构建完成\n")
             if features:
-                features = np.stack(features).astype('float32')
-            # --- 3. 写入数据库（仅插入新图片） ---
+                features = np.stack(features).astype('float32')            # --- 3. 写入数据库（仅插入新图片） ---
             dataset_id = self._update_database(len(img_files), (features.nbytes if len(features) > 0 else 0))
             # 注意：只写入成功处理的图片
-            for idx, fname in enumerate(processed_fnames if 'processed_fnames' in locals() else img_files_to_process):
+            for idx, fname in enumerate(processed_fnames):
                 image_path = os.path.join(self.dataset_dir, fname)
-                feature_vector = features[idx].tobytes()
-                metadata_json = desc_map.get(fname) if desc_map else None
-                image_records.append({
-                    "dataset_id": dataset_id,
-                    "image_path": image_path,
-                    "resource_type": "control",
-                    "metadata_json": metadata_json,
-                    "feature_vector": feature_vector,
-                    "external_ids": None
-                })
+                if idx < len(features):  # 确保特征索引有效
+                    feature_vector = features[idx].tobytes()
+                    metadata_json = desc_map.get(fname) if desc_map else None
+                    image_records.append({
+                        "dataset_id": dataset_id,
+                        "image_path": image_path,
+                        "resource_type": "control",
+                        "metadata_json": metadata_json,
+                        "feature_vector": feature_vector,
+                        "external_ids": None
+                    })
             if image_records:
                 from database_module.modify import insert_multi
                 insert_multi("images", image_records)
@@ -279,3 +295,22 @@ class IndexBuilder:
             feat = np.frombuffer(feat_bytes, dtype=np.float32)
             result.append((img_id, feat))
         return result
+
+    def _process_images_locally(self, img_files_to_process, features, processed_fnames, pbar, progress_file, total_imgs):
+        """本地处理图像特征提取"""
+        embedder = feature_extractor()
+        for idx, fname in enumerate(img_files_to_process):
+            path = os.path.join(self.dataset_dir, fname)
+            try:
+                img = Image.open(path)
+                feat = embedder.calculate(img)
+                self.id_map[idx] = fname
+                features.append(feat)
+                processed_fnames.append(fname)
+            except Exception as e:
+                logger.error(f"[跳过] 图片 {fname} 处理失败: {e}")
+                continue
+            if pbar: 
+                pbar.update(1)
+                self._write_progress_to_file(progress_file, pbar.n, pbar.total)
+        logger.info("本地特征提取完成")
