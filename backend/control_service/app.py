@@ -32,12 +32,11 @@ def create_app():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         return response
-    
-    # 注册蓝图
-    app.register_blueprint(search_bp, url_prefix='/api/search')
-    app.register_blueprint(index_bp, url_prefix='/api/index')
-    app.register_blueprint(dataset_bp, url_prefix='/api/dataset')
-    app.register_blueprint(image_bp, url_prefix='/api/image')
+      # 注册蓝图
+    app.register_blueprint(search_bp)  # search_bp 已经有 url_prefix='/api'
+    app.register_blueprint(index_bp)   # index_bp 已经有 url_prefix='/api'
+    app.register_blueprint(dataset_bp) # dataset_bp 已经有 url_prefix='/api'
+    app.register_blueprint(image_bp)   # image_bp 已经有 url_prefix='/api'
     
     # 健康检查端点
     @app.route('/health')

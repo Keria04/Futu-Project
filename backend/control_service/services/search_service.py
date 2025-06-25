@@ -67,16 +67,16 @@ class LocalSearchStrategy(SearchStrategy):
         for dataset_name in dataset_names:
             try:
                 results = search_similar_images(dataset_name, query_features, top_k=10)
-                for img_id, similarity in results:
-                    # 从数据库获取图片信息
+                for img_id, similarity in results:                    # 从数据库获取图片信息
                     img_info = database_service.get_image_by_id(img_id)
                     if img_info:
                         search_results.append({
-                            'id': img_id,
-                            'similarity': float(similarity),
+                            'idx': img_id,
+                            'fname': img_info.get('filename', ''),
+                            'img_url': f"/api/image/{dataset_name}/{img_id}",
                             'dataset': dataset_name,
-                            'filename': img_info.get('filename', ''),
-                            'file_path': img_info.get('file_path', ''),
+                            'similarity': float(similarity * 100),  # 转换为百分比
+                            'description': img_info.get('description', {})
                         })
             except Exception as e:
                 print(f"搜索数据集 {dataset_name} 时出错: {e}")
@@ -124,8 +124,15 @@ class SearchService:
         
         return self.search_strategy.search(query_image, dataset_names, crop_info)
     
-    def search_repeated_images(self, dataset_names: List[str]) -> List[Dict[str, Any]]:
-        """搜索重复图像"""        # 导入重复搜索模块
+    def search_repeated_images(self, index_id: int, threshold: int = 95, 
+                              deduplicate: bool = False) -> Dict[str, Any]:
+        """搜索重复图像"""
+        # 根据index_id获取数据集名称
+        dataset_name = database_service.get_dataset_name_by_id(index_id)
+        if not dataset_name:
+            raise ValueError("数据集不存在")
+        
+        # 导入重复搜索模块
         try:
             from control_service.faiss_module.repeated_search import find_repeated_images
         except ImportError:
@@ -133,30 +140,39 @@ class SearchService:
             def find_repeated_images(dataset_name, threshold=0.95):
                 return []
         
-        results = []
-        for dataset_name in dataset_names:
-            try:
-                repeated_groups = find_repeated_images(dataset_name, threshold=0.95)
-                for group in repeated_groups:
-                    group_info = {
-                        'dataset': dataset_name,
-                        'images': []
-                    }
-                    for img_id in group:
-                        img_info = database_service.get_image_by_id(img_id)
-                        if img_info:
-                            group_info['images'].append({
-                                'id': img_id,
-                                'filename': img_info.get('filename', ''),
-                                'file_path': img_info.get('file_path', ''),
-                            })
-                    if len(group_info['images']) > 1:
-                        results.append(group_info)
-            except Exception as e:
-                print(f"搜索数据集 {dataset_name} 的重复图像时出错: {e}")
-                continue
-        
-        return results
+        try:
+            repeated_groups = find_repeated_images(dataset_name, threshold=threshold/100.0)
+            
+            # 转换格式以匹配API文档
+            groups = []
+            total_duplicates = 0
+            
+            for group in repeated_groups:
+                if len(group) > 1:  # 只有超过1张图片才算重复组
+                    groups.append(group)
+                    total_duplicates += len(group)
+            
+            result = {
+                "groups": groups,
+                "total_groups": len(groups),
+                "total_duplicates": total_duplicates
+            }
+            
+            # 如果需要去重，执行去重操作
+            if deduplicate:
+                # TODO: 实现去重逻辑
+                result["deduplicated"] = False
+                result["message"] = "去重功能尚未实现"
+            
+            return result
+            
+        except Exception as e:
+            print(f"搜索数据集 {dataset_name} 的重复图像时出错: {e}")
+            return {
+                "groups": [],
+                "total_groups": 0,
+                "total_duplicates": 0
+            }
 
 
 # 全局搜索服务实例

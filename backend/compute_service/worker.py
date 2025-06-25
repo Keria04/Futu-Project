@@ -71,22 +71,39 @@ class FeatureExtractionProcessor(TaskProcessor):
                 task.task_id, 
                 f"特征提取失败: {str(e)}"
             )
-    
     def _process_single_image(self, task: TaskMessage) -> TaskResult:
         """处理单张图片特征提取"""
+        logger = logging.getLogger(f"{__name__}.FeatureExtractionProcessor")
+        
         payload = task.payload
         image_data = payload.get('image_data')
         
         if not image_data:
+            logger.error("❌ 缺少图片数据")
             raise ValueError("缺少图片数据")
         
+        logger.debug(f"🖼️ 开始处理单张图片特征提取")
+        
         # 解码图片
-        img_bytes = base64.b64decode(image_data)
-        img = Image.open(BytesIO(img_bytes))
+        try:
+            img_bytes = base64.b64decode(image_data)
+            img = Image.open(BytesIO(img_bytes))
+            logger.debug(f"📏 图片尺寸: {img.size}")
+            logger.debug(f"🎨 图片模式: {img.mode}")
+        except Exception as e:
+            logger.error(f"❌ 图片解码失败: {e}")
+            raise ValueError(f"图片解码失败: {e}")
         
         # 提取特征
         extractor = self._get_extractor()
+        logger.debug(f"🔍 使用特征提取器: {extractor.__class__.__name__}")
+        
+        start_time = time.time()
         features = extractor.calculate(img)
+        extract_time = time.time() - start_time
+        
+        logger.debug(f"✅ 特征提取完成，耗时: {extract_time:.3f}s")
+        logger.debug(f"📊 特征维度: {features.shape if hasattr(features, 'shape') else len(features)}")
         
         return MessageProtocol.create_success_result(
             task.task_id,
@@ -120,13 +137,17 @@ class FeatureExtractionProcessor(TaskProcessor):
 
 class ComputeWorker:
     """计算端工作者"""
-    
-    def __init__(self, worker_name: str = "compute_worker"):
+    def __init__(self, worker_name: str = "compute_worker", debug: bool = False):
         self.worker_name = worker_name
+        self.debug = debug
         self.redis = redis_client.get_client()
         self.processors: List[TaskProcessor] = []
         self.running = False
         self.worker_thread = None
+        self.logger = logging.getLogger(f"{__name__}.{worker_name}")
+        
+        if self.debug:
+            self.logger.debug(f"🔧 初始化计算工作者: {worker_name}")
         
         # 注册处理器
         self._register_processors()
@@ -155,18 +176,27 @@ class ComputeWorker:
         """工作循环"""
         task_queue = "task_queue"
         result_queue = "result_queue"
-        
         while self.running:
             try:
+                if self.debug:
+                    self.logger.debug(f"🔍 等待任务...")
+                
                 # 从优先级队列获取任务
                 task_data = self.redis.bzpopmin(task_queue, timeout=1)
                 if not task_data:
+                    if self.debug:
+                        self.logger.debug("⏰ 超时，继续等待...")
                     continue
                 
                 _, task_json, _ = task_data
                 task = TaskMessage.from_json(task_json)
                 
-                logging.info(f"处理任务: {task.task_id}, 类型: {task.task_type.value}")
+                if self.debug:
+                    self.logger.debug(f"📥 收到任务: {task.task_id}")
+                    self.logger.debug(f"🏷️ 任务类型: {task.task_type.value}")
+                    self.logger.debug(f"📊 任务数据大小: {len(task_json)} bytes")
+                
+                self.logger.info(f"处理任务: {task.task_id}, 类型: {task.task_type.value}")
                 
                 # 更新任务状态为处理中
                 self._update_task_status(task.task_id, TaskStatus.PROCESSING)
@@ -174,21 +204,36 @@ class ComputeWorker:
                 # 查找合适的处理器
                 processor = self._find_processor(task.task_type)
                 if processor is None:
+                    if self.debug:
+                        self.logger.debug(f"❌ 没有找到处理器: {task.task_type.value}")
                     result = MessageProtocol.create_error_result(
                         task.task_id,
                         f"没有找到处理器: {task.task_type.value}"
                     )
                 else:
+                    if self.debug:
+                        self.logger.debug(f"✅ 找到处理器: {processor.__class__.__name__}")
                     # 处理任务
+                    start_time = time.time()
                     result = processor.process(task)
+                    process_time = time.time() - start_time
+                    
+                    if self.debug:
+                        self.logger.debug(f"⏱️ 处理耗时: {process_time:.3f}s")
                 
                 # 发送结果
                 self.redis.lpush(result_queue, result.to_json())
                 
-                logging.info(f"任务完成: {task.task_id}, 状态: {result.status.value}")
+                if self.debug:
+                    self.logger.debug(f"📤 结果已发送到队列")
+                
+                self.logger.info(f"任务完成: {task.task_id}, 状态: {result.status.value}")
                 
             except Exception as e:
-                logging.error(f"工作循环出错: {e}")
+                self.logger.error(f"工作循环出错: {e}")
+                if self.debug:
+                    import traceback
+                    self.logger.debug(f"错误详情:\n{traceback.format_exc()}")
                 time.sleep(1)
     
     def _find_processor(self, task_type: TaskType) -> Optional[TaskProcessor]:
@@ -209,20 +254,44 @@ class ComputeWorker:
 
 def run_compute_worker():
     """运行计算工作者"""
+    import argparse
+    
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='计算端工作者')
+    parser.add_argument('--debug', action='store_true', help='启用详细debug输出')
+    parser.add_argument('--log-level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'])
+    args, unknown = parser.parse_known_args()
+    
+    # 设置日志级别
+    log_level = getattr(logging, args.log_level.upper())
+    if args.debug:
+        log_level = logging.DEBUG
+    
     # 设置日志
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout),  # 确保输出到标准输出
+        ]
     )
+    
+    logger = logging.getLogger(__name__)
+    
+    if args.debug:
+        logger.info("🐛 DEBUG模式已启用")
+        logger.debug(f"当前工作目录: {os.getcwd()}")
+        logger.debug(f"Python路径: {sys.path}")
     
     # 设置工作目录
     current_dir = os.getcwd()
     target_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     if current_dir != target_dir:
+        logger.debug(f"切换工作目录: {current_dir} -> {target_dir}")
         os.chdir(target_dir)
     
     # 创建工作者
-    worker = ComputeWorker()
+    worker = ComputeWorker(debug=args.debug)
     
     try:
         worker.start()
@@ -232,10 +301,10 @@ def run_compute_worker():
             time.sleep(1)
     
     except KeyboardInterrupt:
-        logging.info("收到停止信号...")
+        logger.info("收到停止信号...")
     finally:
         worker.stop()
-        logging.info("计算工作者已退出")
+        logger.info("计算工作者已退出")
 
 
 if __name__ == '__main__':

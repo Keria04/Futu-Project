@@ -61,15 +61,21 @@ def api_repeated_search():
     """重复图像搜索API"""
     try:
         data = request.get_json()
-        dataset_names = data.get('dataset_names', [])
+        index_id = data.get('index_id')
+        threshold = data.get('threshold', 95)
+        deduplicate = data.get('deduplicate', False)
         
-        if not dataset_names:
-            return jsonify({"msg": "缺少数据集名称"}), 400
+        if index_id is None:
+            return jsonify({"msg": "缺少数据集ID"}), 400
         
         # 执行重复图像搜索
-        results = search_service.search_repeated_images(dataset_names)
+        results = search_service.search_repeated_images(
+            index_id=index_id,
+            threshold=threshold,
+            deduplicate=deduplicate
+        )
         
-        return jsonify({"results": results})
+        return jsonify(results)
         
     except Exception as e:
         return jsonify({"msg": f"重复图像搜索失败: {str(e)}"}), 500

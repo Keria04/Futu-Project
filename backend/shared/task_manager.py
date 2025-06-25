@@ -223,3 +223,13 @@ class TaskManager:
 
 # 全局任务管理器实例
 task_manager = TaskManager()
+
+# 初始化任务管理器
+def initialize_task_manager():
+    """初始化任务管理器"""
+    if not task_manager.monitoring:
+        task_manager.start_monitoring()
+        print("✓ 任务管理器已初始化")
+
+# 自动初始化
+initialize_task_manager()

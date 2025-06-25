@@ -63,12 +63,17 @@ def api_build_index():
                 results.append({
                     "dataset": dataset_name,
                     "success": False,
-                    "message": "索引构建已在进行中"
-                })
+                    "message": "索引构建已在进行中"                })
         
         return jsonify({
-            "msg": "索引构建请求已处理",
-            "results": results
+            "msg": "索引构建已启动",
+            "progress": [
+                {
+                    "dataset": result["dataset"],
+                    "progress_file": f"/api/build_index/progress/{result['dataset']}"
+                }
+                for result in results if result.get("success", False)
+            ]
         })
         
     except Exception as e:
@@ -98,8 +103,7 @@ def api_get_progress(dataset_name):
                 "status": "pending",
                 "message": "等待开始"
             })
-        
-        # 解析最后一行
+          # 解析最后一行
         last_line = lines[-1].strip()
         
         if last_line.startswith("ERROR"):
@@ -111,7 +115,7 @@ def api_get_progress(dataset_name):
         elif "100.00%" in last_line:
             return jsonify({
                 "progress": 100,
-                "status": "completed",
+                "status": "done",
                 "message": "索引构建完成"
             })
         else:
@@ -127,13 +131,13 @@ def api_get_progress(dataset_name):
                 
                 return jsonify({
                     "progress": progress,
-                    "status": "processing",
+                    "status": "building",
                     "message": message
                 })
             except Exception:
                 return jsonify({
                     "progress": 0,
-                    "status": "processing",
+                    "status": "building",
                     "message": last_line
                 })
         

@@ -183,13 +183,11 @@ class IndexBuilder:
                 
                 if result and result.status.value == 'completed':
                     features = result.result
-                    
-                    # 添加图片到数据库
+                      # 添加图片到数据库
                     image_id = database_service.add_image(
-                        dataset_id=dataset_id,
                         filename=filename,
                         file_path=image_path,
-                        file_size=os.path.getsize(image_path)
+                        dataset_id=dataset_id
                     )
                     
                     features_list.append(features)
