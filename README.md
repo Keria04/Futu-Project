@@ -256,4 +256,4 @@ python run_performance_test.py examples
 
 ### 详细文档
 
-查看 [性能测试文档](scripts/PERFORMANCE_TESTBENCH_README.md) 了解更多详细信息。
+查看 [性能测试文档](docs/性能测试使用文档.md) 了解更多详细信息。
