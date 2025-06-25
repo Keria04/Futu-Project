@@ -27,8 +27,8 @@ import seaborn as sns
 from tabulate import tabulate
 
 # 添加路径
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, project_root)
 
 # 导入项目模块
 from config import config
