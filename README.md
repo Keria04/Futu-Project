@@ -120,3 +120,40 @@ Set-ExecutionPolicy RemoteSigned -Scope Process
 ```
 .\start.bat
 ```
+
+
+
+## 性能测试
+
+本项目提供了完整的性能测试和优化工具套件，用于评估和优化系统性能。
+
+### 快速开始
+
+```bash
+# 快速性能测试（推荐）
+python run_performance_test.py quick
+
+# 完整性能基准测试
+python run_performance_test.py full
+
+# 配置参数优化
+python run_performance_test.py optimize
+
+# 验证测试工具
+python run_performance_test.py verify
+
+# 运行示例
+python run_performance_test.py examples
+```
+
+### 测试功能
+
+- **远程 vs 本地计算性能对比** - 评估Celery分布式计算与本地计算的性能差异
+- **簇大小影响分析** - 分析FAISS索引的N_LIST参数对检索性能的影响
+- **批处理大小优化** - 找到最优的batchsize配置
+- **设备性能对比** - 比较CPU和GPU的性能表现
+- **配置参数自动优化** - 自动寻找最佳配置组合
+
+### 详细文档
+
+查看 [性能测试文档](scripts/PERFORMANCE_TESTBENCH_README.md) 了解更多详细信息。

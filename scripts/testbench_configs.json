@@ -1,0 +1,74 @@
+{
+  "test_configurations": {
+    "baseline": {
+      "description": "基准配置",
+      "device": "cpu",
+      "batchsize": 16,
+      "N_LIST": 10,
+      "DISTRIBUTED_AVAILABLE": true
+    },
+    "high_performance": {
+      "description": "高性能配置",
+      "device": "cpu",
+      "batchsize": 64,
+      "N_LIST": 20,
+      "DISTRIBUTED_AVAILABLE": true
+    },
+    "low_latency": {
+      "description": "低延迟配置",
+      "device": "cpu",
+      "batchsize": 4,
+      "N_LIST": 5,
+      "DISTRIBUTED_AVAILABLE": true
+    },
+    "accuracy_focused": {
+      "description": "准确率优先配置",
+      "device": "cpu",
+      "batchsize": 8,
+      "N_LIST": 50,
+      "DISTRIBUTED_AVAILABLE": true
+    },
+    "local_only": {
+      "description": "仅本地计算",
+      "device": "cpu",
+      "batchsize": 16,
+      "N_LIST": 10,
+      "DISTRIBUTED_AVAILABLE": false
+    },
+    "distributed_only": {
+      "description": "仅分布式计算",
+      "device": "cpu",
+      "batchsize": 16,
+      "N_LIST": 10,
+      "DISTRIBUTED_AVAILABLE": true
+    }
+  },
+  "cluster_size_test": {
+    "description": "簇大小对性能影响测试",
+    "N_LIST_values": [1, 5, 10, 20, 50, 100],
+    "fixed_config": {
+      "device": "cpu",
+      "batchsize": 16,
+      "DISTRIBUTED_AVAILABLE": true
+    }
+  },
+  "batch_size_test": {
+    "description": "批处理大小对性能影响测试",
+    "batchsize_values": [1, 4, 8, 16, 32, 64, 128],
+    "fixed_config": {
+      "device": "cpu",
+      "N_LIST": 10,
+      "DISTRIBUTED_AVAILABLE": true
+    }
+  },
+  "concurrent_test": {
+    "description": "并发处理能力测试",
+    "concurrent_levels": [1, 2, 4, 8, 16],
+    "fixed_config": {
+      "device": "cpu",
+      "batchsize": 8,
+      "N_LIST": 10,
+      "DISTRIBUTED_AVAILABLE": true
+    }
+  }
+}
