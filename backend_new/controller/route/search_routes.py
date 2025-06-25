@@ -91,6 +91,7 @@ def search_image():
                 final_image_path = query_image_path
             
             # 提取查询图片的特征向量
+            # 如果需要重算图片为0，跳过
             query_features = _extract_image_features(final_image_path)
             if query_features is None:
                 return jsonify({
@@ -215,23 +216,20 @@ def _extract_image_features(image_path: str) -> np.ndarray:
         redis_client = get_redis_client()
         if not redis_client:
             current_app.logger.error("Redis客户端不可用")
-            return None
-        
-        # 发送特征提取任务
+            return None        # 发送特征提取任务
         task_data = {
-            'task_type': 'feature_extraction',
+            'task_type': 'single_feature_extraction',
             'image_path': image_path
         }
         
-        task_id = redis_client.publish_task('compute:feature_extraction', task_data)
+        task_id = redis_client.publish_task('compute:single_feature_extraction', task_data)
         current_app.logger.info(f"已发送特征提取任务: {task_id}")
-        
-        # 等待结果
+          # 等待结果
         result = redis_client.get_result(task_id, timeout=30)
         redis_client.delete_result(task_id)  # 清理结果
         
         if result and result.get('success'):
-            features = result.get('features')
+            features = result.get('result')  # 计算端返回的特征在'result'字段中
             if features:
                 return np.array(features, dtype=np.float32)
             else:
