@@ -40,22 +40,43 @@ def get_progress(dataset_name):
     progress_file = os.path.join(progress_dir, f"{dataset_name}_progress.txt")
     if not os.path.exists(progress_file):
         return jsonify({"progress": 0, "status": "pending"})
+    
     try:
-        with open(progress_file, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            if not lines:
-                return jsonify({"progress": 0, "status": "pending"})
-            last_line = lines[-1]
-            # tqdm格式: "特征提取:  10%|##        | 1/10 [00:00<00:00,  5.00it/s]"
-            import re
-            m = re.search(r'(\d+)/(\d+)', last_line)
-            if m:
-                current = int(m.group(1))
-                total = int(m.group(2))
-                percent = int(current / total * 100)
-                status = "done" if current == total else "running"
-                return jsonify({"progress": percent, "current": current, "total": total, "status": status})
-    except Exception:
+        # 尝试多种编码方式读取文件
+        encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1']
+        lines = None
+        
+        for encoding in encodings:
+            try:
+                with open(progress_file, "r", encoding=encoding, errors='ignore') as f:
+                    lines = f.readlines()
+                    break
+            except UnicodeDecodeError:
+                continue
+        
+        if not lines:
+            return jsonify({"progress": 0, "status": "pending"})
+        
+        # 检查是否有完成标记
+        if any("索引构建完成" in line for line in lines):
+            return jsonify({"progress": 100, "status": "done", "message": "索引构建完成"})
+        
+        # 查找最后一个包含进度信息的行
+        last_line = lines[-1]
+        # tqdm格式: "特征提取:  10%|##        | 1/10 [00:00<00:00,  5.00it/s]"
+        import re
+        m = re.search(r'(\d+)/(\d+)', last_line)
+        if m:
+            current = int(m.group(1))
+            total = int(m.group(2))
+            if total == 0:
+                # 没有新图片需要处理，直接返回完成状态
+                return jsonify({"progress": 100, "status": "done", "message": "没有新图片需要处理"})
+            percent = int(current / total * 100)
+            status = "done" if current == total else "building"
+            return jsonify({"progress": percent, "current": current, "total": total, "status": status})
+    except Exception as e:
+        print(f"读取进度文件出错: {e}")
         pass
     return jsonify({"progress": 0, "status": "pending"})
 
