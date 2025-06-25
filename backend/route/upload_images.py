@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 
 upload_bp = Blueprint('upload_images', __name__)
 
-@upload_bp.route('/upload_images', methods=['POST'])
+@upload_bp.route('/api/upload_images', methods=['POST'])
 def upload_images():
     dataset = request.form.get('dataset')
     if not dataset:
