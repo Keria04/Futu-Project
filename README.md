@@ -51,102 +51,38 @@ Futu-Project/
 ├── requirement.txt                    # Python 依赖列表
 ├── backend/                           # 后端服务代码
 │   ├── app.py                         # 后端主程序入口
-│   ├── worker.py                      # Celery后台任务处理
 │   ├── start_worker.py                # 启动Worker脚本
-│   ├── start_worker_simple.py         # 简化Worker启动脚本
-│   ├── test_celery_dispatch.py        # Celery调度测试
-│   ├── fix_queue_and_test.py          # 队列修复和测试
 │   ├── database_module/               # 数据库模块
-│   │   ├── __init__.py
-│   │   ├── database.py                # 数据库核心功能
-│   │   ├── schema.py                  # 数据库表结构
-│   │   ├── query.py                   # 查询功能
-│   │   └── modify.py                  # 修改功能
 │   ├── model_module/                  # 特征提取模型
-│   │   ├── __init__.py
-│   │   └── feature_extractor.py       # 特征提取器
 │   ├── faiss_module/                  # Faiss索引模块
-│   │   ├── __init__.py
-│   │   ├── build_index.py             # 构建索引
-│   │   ├── indexer.py                 # 索引器接口
-│   │   ├── search_index.py            # 查询索引
-│   │   ├── update_index.py            # 更新索引
-│   │   ├── repeated_search.py         # 重复搜索功能
 │   │   └── faiss_utils/               # Faiss工具包
 │   ├── index_manage_module/           # 索引管理模块
-│   │   ├── __init__.py
-│   │   ├── api.py                     # 索引管理API
-│   │   ├── factory.py                 # 索引工厂
-│   │   └── index_builder.py           # 索引构建器
 │   ├── search_module/                 # 搜索模块
-│   │   ├── __init__.py
-│   │   └── search.py                  # 搜索功能
 │   └── route/                         # 路由定义
-│       ├── __init__.py
-│       ├── build_index.py             # 构建索引路由
-│       ├── get_dataset_id.py          # 获取数据集ID路由
-│       ├── get_datasets.py            # 获取数据集路由
-│       ├── image.py                   # 图片处理路由
-│       ├── index.py                   # 索引路由
-│       ├── repeated_search.py         # 重复搜索路由
-│       ├── search.py                  # 搜索路由
-│       └── upload_images.py           # 图片上传路由
 ├── frontend/                          # 前端 Vue 项目
-│   ├── index.html                     # HTML 模板入口
-│   ├── package.json                   # 项目依赖说明
-│   ├── jsconfig.json                  # JavaScript配置
-│   ├── vite.config.js                 # Vite 配置文件
-│   ├── public/                        # 静态资源
 │   └── src/                           # 前端核心源码
 ├── config/                            # 配置文件
 │   ├── config.py                      # 配置项定义
-│   └── defaultconfig.json             # 默认配置
+│   └── defaultconfig.json             # 预留默认配置
 ├── data/                              # 数据存储目录
 │   ├── main.db                        # SQLite主数据库
 │   ├── indexes/                       # 索引文件存储
-│   │   ├── 1.index                    # 数据集1索引
-│   │   ├── 2.index                    # 数据集2索引
-│   │   └── 3.index                    # 数据集3索引
+│   │   ├── 1.index                    # 数据集1索引*可变
+│   │   ├── 2.index                    # 数据集2索引*可变
+│   │   └── 3.index                    # 数据集3索引*可变
 │   ├── progress/                      # 进度文件存储
-│   │   ├── 1_progress.txt             # 数据集1进度
-│   │   ├── 2_progress.txt             # 数据集2进度
-│   │   └── 3_progress.txt             # 数据集3进度
 │   └── uploads/                       # 用户上传图片
 ├── datasets/                          # 数据集目录
-│   ├── 1/                             # 数据集1图片
-│   ├── 2/                             # 数据集2图片
-│   └── 3/                             # 数据集3图片
+│   ├── 1/                             # 数据集1图片*可变
+│   ├── 2/                             # 数据集2图片*可变
+│   └── 3/                             # 数据集3图片*可变
 ├── docs/                              # 项目相关文档
-│   ├── 浮图-软件架构文档.md
-│   ├── 浮图-软件架构文档.pdf
-│   ├── 浮图-项目开发计划书.md
-│   ├── 浮图-项目开发计划书.pdf
-│   ├── 浮图-数据库设计文档.pdf
-│   ├── 开发规范.md
-│   ├── 设计文档.md
-│   ├── 数据库设计文档.md
-│   ├── 性能测试使用文档.md
-│   ├── 软件需求规约.doc
-│   ├── 工作周报/                      # 项目周报
-│   ├── 文档用图片/                    # 架构图、用例图等插图
-│   ├── 用例规约_第三周/               # 用例规约文档
-│   └── 用例实现规约_第三周/           # 用例实现规约
 ├── scripts/                           # 脚本与快捷启动工具
 │   ├── start.bat                      # Windows 启动脚本
 │   ├── start.sh                       # Linux/Mac 启动脚本
 │   ├── start_worker.bat               # Windows Worker启动脚本
-│   ├── config_optimizer.py            # 配置优化器
-│   ├── generate_test_images.py        # 生成测试图像
-│   ├── performance_examples.py        # 性能测试示例
-│   ├── performance_testbench.py       # 性能测试平台
-│   ├── quick_performance_test.py      # 快速性能测试
 │   ├── run_performance_test.py        # 运行性能测试
-│   ├── testbench_configs.json         # 测试平台配置
-│   └── verify_testbench.py            # 验证测试平台
-└── uploads/                           # 临时上传目录
 ```
-
-
 
 ## 快速开始
 
