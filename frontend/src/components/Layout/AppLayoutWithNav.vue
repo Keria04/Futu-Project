@@ -3,7 +3,10 @@
     <!-- 顶部导航栏 -->
     <header class="app-header">
       <div class="header-container">
-        <h1 class="app-title">浮图图片检索系统</h1>
+        <div class="brand-section">
+          <img :src="logoUrl" alt="浮图Logo" class="app-logo" />
+          <h1 class="app-title">浮图图片检索系统</h1>
+        </div>
         
         <nav class="app-nav">
           <button 
@@ -56,6 +59,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import logoUrl from '@/assets/logo.png'
 
 // 当前视图
 const currentView = ref('datasets')
@@ -96,6 +100,19 @@ const switchView = (view) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 品牌区域 */
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-logo {
+  height: 40px;
+  width: auto;
+  border-radius: 4px;
 }
 
 .app-title {
@@ -153,6 +170,14 @@ const switchView = (view) => {
     padding: 0 1rem;
     flex-direction: column;
     gap: 1rem;
+  }
+  
+  .brand-section {
+    gap: 0.5rem;
+  }
+  
+  .app-logo {
+    height: 32px;
   }
   
   .app-title {
