@@ -109,10 +109,13 @@ class FaissIndexer:
             print(f"索引已保存到: {self.index_path}")
 
     def load_index(self):
+        """加载索引并在可用时转移到 GPU"""
         if os.path.exists(self.index_path):
             self.index = faiss.read_index(self.index_path)
-            # 加载后转移到 GPU（如果可用）
-            self.index = self.to_gpu(self.index)
+            if self.use_gpu and self.gpu_resources is not None:
+                print("正在将索引转移到 GPU...")
+                self.index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, self.index)
+                print("索引已成功转移到 GPU")
         else:
             raise FileNotFoundError(f"No FAISS index at {self.index_path}")
     def search(self, query: np.ndarray, k: int = 5):
