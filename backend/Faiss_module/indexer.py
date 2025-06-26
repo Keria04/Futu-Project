@@ -106,6 +106,8 @@ class FaissIndexer:
     def load_index(self):
         if os.path.exists(self.index_path):
             self.index = faiss.read_index(self.index_path)
+            # 加载后转移到 GPU（如果可用）
+            self.index = self.to_gpu(self.index)
         else:
             raise FileNotFoundError(f"No FAISS index at {self.index_path}")
     def search(self, query: np.ndarray, k: int = 5):
