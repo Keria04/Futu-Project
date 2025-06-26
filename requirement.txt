@@ -2,3 +2,8 @@ tqdm
 flask
 celery
 redis
+matplotlib
+seaborn
+tabulate
+numpy
+pillow

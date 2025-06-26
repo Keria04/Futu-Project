@@ -219,3 +219,6 @@ data/*
 
 # 忽略更多虚拟环境
 .worker
+
+# 忽略测试报告
+/performance_reports
