@@ -54,7 +54,19 @@ class FaissIndexer:
     def to_gpu(self, index):
         """将索引转移到 GPU"""
         if self.use_gpu and self.gpu_resources is not None:
-            return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index)
+            try:
+                gpu_index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, index)
+                print(f"GPU 转换后的索引类型: {type(gpu_index)}")
+                if isinstance(gpu_index, faiss.GpuIndex):
+                    return gpu_index
+                else:
+                    print("警告：GPU 转换可能未成功，将使用 CPU 模式")
+                    self.use_gpu = False
+                    return index
+            except Exception as e:
+                print(f"转移到 GPU 时出错: {str(e)}")
+                self.use_gpu = False
+                return index
         return index
 
     def to_cpu(self, index):
@@ -112,10 +124,20 @@ class FaissIndexer:
         """加载索引并在可用时转移到 GPU"""
         if os.path.exists(self.index_path):
             self.index = faiss.read_index(self.index_path)
+            print(f"加载后的索引类型: {type(self.index)}")
+
             if self.use_gpu and self.gpu_resources is not None:
                 print("正在将索引转移到 GPU...")
-                self.index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, self.index)
-                print("索引已成功转移到 GPU")
+                try:
+                    self.index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, self.index)
+                    print(f"转移到 GPU 后的索引类型: {type(self.index)}")
+                    if isinstance(self.index, faiss.GpuIndex):
+                        print("确认：索引已成功转移到 GPU")
+                    else:
+                        print("警告：索引可能未正确转移到 GPU")
+                except Exception as e:
+                    print(f"转移到 GPU 时出错: {str(e)}")
+                    self.use_gpu = False
         else:
             raise FileNotFoundError(f"No FAISS index at {self.index_path}")
     def search(self, query: np.ndarray, k: int = 5):
