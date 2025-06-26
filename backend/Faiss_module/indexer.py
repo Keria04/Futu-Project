@@ -55,26 +55,25 @@ class FaissIndexer:
         """将索引转移到 GPU"""
         if self.use_gpu and self.gpu_resources is not None:
             try:
-                # 创建 GPU 配置
-                co = faiss.GpuMultipleClonerOptions()
-                co.useFloat16 = True  # 使用 float16 以节省 GPU 内存
-                co.usePrecomputed = False  # 某些索引类型需要设为 False
-
                 # 检查索引类型并相应处理
                 if isinstance(index, faiss.IndexIDMap):
                     print("检测到 IDMap 索引，正在特殊处理...")
-                    # 获取内部索引和ID映射
+                    # 获取内部索引
                     base_index = faiss.downcast_index(index.index)
-                    ids = index.id_map
-                    xids = np.array(list(ids.keys()), dtype='int64')
-                    xb = np.vstack([ids[id] for id in xids])
 
-                    # 创建新的 GPU 索引
+                    # 先创建空的 GPU 版本的基础索引
                     gpu_base = faiss.index_cpu_to_gpu(self.gpu_resources, 0, base_index)
+
+                    # 创建新的 GPU 版本的 IDMap 索引
                     gpu_index = faiss.IndexIDMap(gpu_base)
 
-                    # 添加数据
-                    gpu_index.add_with_ids(xb, xids)
+                    # 获取所有向量和对应的 ID
+                    ntotal = index.ntotal
+                    for i in range(ntotal):
+                        vec = index.reconstruct(i)  # 获取向量
+                        id = index.id_map[i]  # 获取 ID
+                        # 添加到 GPU 索引
+                        gpu_index.add_with_ids(vec.reshape(1, -1), np.array([id], dtype='int64'))
 
                     print(f"GPU 转换后的索引类型: {type(gpu_index)}")
                     print(f"GPU 转换后的内部索引类型: {type(gpu_base)}")
