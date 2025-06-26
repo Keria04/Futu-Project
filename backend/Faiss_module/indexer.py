@@ -55,14 +55,26 @@ class FaissIndexer:
         """将索引转移到 GPU"""
         if self.use_gpu and self.gpu_resources is not None:
             try:
-                gpu_index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, index)
-                print(f"GPU 转换后的索引类型: {type(gpu_index)}")
-                if isinstance(gpu_index, faiss.GpuIndex):
-                    return gpu_index
+                # 创建 GPU 配置
+                co = faiss.GpuMultipleClonerOptions()
+                co.useFloat16 = True  # 使用 float16 以节省 GPU 内存
+                co.usePrecomputed = False  # 某些索引类型需要设为 False
+
+                # 检查索引类型并相应处理
+                if isinstance(index, faiss.IndexIDMap):
+                    print("检测到 IDMap 索引，正在特殊处理...")
+                    # 获取内部索引
+                    base_index = faiss.downcast_index(index.index)
+                    # 转换内部索引到 GPU
+                    gpu_index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, base_index)
+                    # 重新包装为 IDMap
+                    gpu_index = faiss.IndexIDMap(gpu_index)
                 else:
-                    print("警告：GPU 转换可能未成功，将使用 CPU 模式")
-                    self.use_gpu = False
-                    return index
+                    gpu_index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, index)
+
+                print(f"GPU 转换后的索引类型: {type(gpu_index)}")
+                print(f"GPU 转换后的内部索引类型: {type(faiss.downcast_index(gpu_index.index)) if isinstance(gpu_index, faiss.IndexIDMap) else type(gpu_index)}")
+                return gpu_index
             except Exception as e:
                 print(f"转移到 GPU 时出错: {str(e)}")
                 self.use_gpu = False
@@ -125,16 +137,24 @@ class FaissIndexer:
         if os.path.exists(self.index_path):
             self.index = faiss.read_index(self.index_path)
             print(f"加载后的索引类型: {type(self.index)}")
+            if isinstance(self.index, faiss.IndexIDMap):
+                print(f"内部索引类型: {type(faiss.downcast_index(self.index.index))}")
 
             if self.use_gpu and self.gpu_resources is not None:
                 print("正在将索引转移到 GPU...")
                 try:
-                    self.index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, self.index)
-                    print(f"转移到 GPU 后的索引类型: {type(self.index)}")
-                    if isinstance(self.index, faiss.GpuIndex):
-                        print("确认：索引已成功转移到 GPU")
-                    else:
-                        print("警告：索引可能未正确转移到 GPU")
+                    self.index = self.to_gpu(self.index)
+                    if isinstance(self.index, faiss.IndexIDMap):
+                        base_index = faiss.downcast_index(self.index.index)
+                        is_gpu = any(isinstance(base_index, t) for t in [
+                            faiss.GpuIndexFlat, faiss.GpuIndexIVFFlat,
+                            faiss.GpuIndexIVFScalarQuantizer
+                        ])
+                        if is_gpu:
+                            print("确认：索引已成功转移到 GPU")
+                        else:
+                            print("警告：索引可能未正确转移到 GPU")
+                            self.use_gpu = False
                 except Exception as e:
                     print(f"转移到 GPU 时出错: {str(e)}")
                     self.use_gpu = False
