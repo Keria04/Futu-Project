@@ -63,20 +63,29 @@ class FaissIndexer:
                 # 检查索引类型并相应处理
                 if isinstance(index, faiss.IndexIDMap):
                     print("检测到 IDMap 索引，正在特殊处理...")
-                    # 获取内部索引
+                    # 获取内部索引和ID映射
                     base_index = faiss.downcast_index(index.index)
-                    # 转换内部索引到 GPU
-                    gpu_index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, base_index)
-                    # 重新包装为 IDMap
-                    gpu_index = faiss.IndexIDMap(gpu_index)
+                    ids = index.id_map
+                    xids = np.array(list(ids.keys()), dtype='int64')
+                    xb = np.vstack([ids[id] for id in xids])
+
+                    # 创建新的 GPU 索引
+                    gpu_base = faiss.index_cpu_to_gpu(self.gpu_resources, 0, base_index)
+                    gpu_index = faiss.IndexIDMap(gpu_base)
+
+                    # 添加数据
+                    gpu_index.add_with_ids(xb, xids)
+
+                    print(f"GPU 转换后的索引类型: {type(gpu_index)}")
+                    print(f"GPU 转换后的内部索引类型: {type(gpu_base)}")
+                    return gpu_index
                 else:
                     gpu_index = faiss.index_cpu_to_gpu(self.gpu_resources, 0, index)
-
-                print(f"GPU 转换后的索引类型: {type(gpu_index)}")
-                print(f"GPU 转换后的内部索引类型: {type(faiss.downcast_index(gpu_index.index)) if isinstance(gpu_index, faiss.IndexIDMap) else type(gpu_index)}")
-                return gpu_index
+                    print(f"GPU 转换后的索引类型: {type(gpu_index)}")
+                    return gpu_index
             except Exception as e:
                 print(f"转移到 GPU 时出错: {str(e)}")
+                print("回退到 CPU 模式")
                 self.use_gpu = False
                 return index
         return index
