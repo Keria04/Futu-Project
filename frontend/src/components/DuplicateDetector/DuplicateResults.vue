@@ -11,17 +11,40 @@
       >
         <div class="group-header">
           <h4 class="group-title">重复组 {{ index + 1 }}</h4>
-          <span class="group-count">{{ group.length }} 张图片</span>
+          <span class="group-count">{{ group.images?.length || group.image_ids?.length || 0 }} 张图片</span>
         </div>
         
         <div class="group-items">
+          <!-- 如果有图片信息，显示图片 -->
           <div 
-            v-for="imageId in group" 
+            v-if="group.images && group.images.length > 0"
+            v-for="image in group.images" 
+            :key="image.id"
+            class="group-item image-item"
+          >
+            <div class="image-preview">
+              <img 
+                :src="getImageUrl(image.image_url)" 
+                :alt="`图片 ${image.id}`"
+                @error="handleImageError"
+                class="preview-img"
+              />
+            </div>
+            <div class="image-info">
+              <div class="item-id">ID: {{ image.id }}</div>
+              <div class="item-dataset">数据集: {{ image.dataset_name }}</div>
+              <div class="item-filename">文件: {{ image.filename }}</div>
+            </div>
+          </div>
+          
+          <!-- 如果只有ID，显示ID -->
+          <div 
+            v-else
+            v-for="imageId in (group.image_ids || group)" 
             :key="imageId"
             class="group-item"
           >
             <div class="item-id">图片ID: {{ imageId }}</div>
-            <!-- 这里可以扩展显示图片预览 -->
           </div>
         </div>
       </div>
@@ -56,8 +79,34 @@ watch(() => props.groups, () => {
 
 // 计算重复图片总数
 const totalDuplicateImages = computed(() => {
-  return props.groups.reduce((total, group) => total + group.length, 0)
+  return props.groups.reduce((total, group) => {
+    // 支持新旧两种数据格式
+    if (group.images && group.images.length > 0) {
+      return total + group.images.length
+    } else if (group.image_ids && group.image_ids.length > 0) {
+      return total + group.image_ids.length
+    } else if (Array.isArray(group)) {
+      return total + group.length
+    }
+    return total
+  }, 0)
 })
+
+// 获取图片URL，处理相对路径
+function getImageUrl(imageUrl) {
+  if (!imageUrl) return ''
+  // 如果是相对路径，添加后端基础URL
+  if (imageUrl.startsWith('/')) {
+    return `http://localhost:19198${imageUrl}`
+  }
+  return imageUrl
+}
+
+// 图片加载错误处理
+function handleImageError(event) {
+  console.error('图片加载失败:', event.target.src)
+  event.target.style.display = 'none'
+}
 </script>
 
 <style scoped>
@@ -161,28 +210,79 @@ const totalDuplicateImages = computed(() => {
 }
 
 .group-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
 }
 
 .group-item {
   background: #ffffff;
   border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  padding: 0.5rem;
   font-size: 0.9rem;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .group-item:hover {
   background: #f5f5f5;
   border-color: #d0d0d0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.image-item {
+  text-align: center;
+}
+
+.image-preview {
+  margin-bottom: 0.5rem;
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+  transition: transform 0.2s ease;
+}
+
+.preview-img:hover {
+  transform: scale(1.05);
+}
+
+.image-info {
+  width: 100%;
+  font-size: 0.8rem;
+  line-height: 1.3;
 }
 
 .item-id {
-  color: #555;
-  font-weight: 500;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.item-dataset {
+  color: #666;
+  margin-bottom: 0.2rem;
+}
+
+.item-filename {
+  color: #888;
+  font-size: 0.75rem;
+  word-break: break-all;
 }
 
 .results-summary {

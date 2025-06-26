@@ -66,7 +66,8 @@ async function findDuplicates() {
   messageType.value = 'info'
   
   try {
-    const resp = await duplicateApi.findDuplicates(datasetName, threshold.value)
+    // 使用新的API获取带图片信息的重复组
+    const resp = await duplicateApi.getDuplicateGroupsWithImages(datasetName, threshold.value)
     duplicateGroups.value = resp.data.groups || []
     if (duplicateGroups.value.length === 0) {
       message.value = '未找到重复图片'

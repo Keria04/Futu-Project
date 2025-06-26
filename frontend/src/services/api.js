@@ -84,6 +84,29 @@ export const duplicateApi = {
     }, {
       timeout: 600000 // 10分钟超时
     })
+  },
+  
+  // 获取重复组的详细图片信息
+  getDuplicateGroupsWithImages(index_id, threshold, deduplicate = false) {
+    return api.post('/get_duplicate_groups_with_images', {
+      index_id,
+      threshold,
+      deduplicate
+    }, {
+      timeout: 600000 // 10分钟超时
+    })
+  },
+  
+  // 根据ID获取单张图片信息
+  getImageById(imageId) {
+    return api.get(`/get_image_by_id/${imageId}`)
+  },
+  
+  // 批量获取图片信息
+  getImagesByIds(imageIds) {
+    return api.post('/get_images_by_ids', {
+      image_ids: imageIds
+    })
   }
 }
 
