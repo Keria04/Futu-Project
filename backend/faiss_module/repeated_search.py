@@ -63,11 +63,8 @@ def repeated_search(index_id, threshold: float = 95.0, deduplicate: bool = False
 
         query_vec = xb[i].reshape(1, -1)
 
-        # 检查是否使用 GPU 模式
-        is_gpu_index = hasattr(indexer.index, 'getMaxKSelection')
-
-        if is_gpu_index:
-            # GPU 模式：分批搜索
+        if indexer.use_gpu:
+            # GPU 模式：限制 k 值
             k = min(MAX_K_GPU, total_ids)
             distances, neighbors = indexer.index.search(query_vec, k)
         else:
