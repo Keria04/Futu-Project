@@ -221,4 +221,4 @@ data/*
 .worker
 
 # 忽略测试报告
-/performance_reports
+/performance_reports/*
