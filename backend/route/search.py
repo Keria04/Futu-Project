@@ -5,6 +5,9 @@ search_bp = Blueprint('search', __name__)
 
 @search_bp.route('/api/search', methods=['POST'])
 def api_search():
+    # 查询个数
+    top_k = int(request.form.get('top_k', 10))
+    
     # 支持多个数据集名称（dataset_names[]），优先取多个，否则取单个
     dataset_names = request.form.getlist('dataset_names[]')
     if not dataset_names:
@@ -28,7 +31,7 @@ def api_search():
         return jsonify({"msg": "未上传图片"}), 400
 
     # 传递所有数据集名称
-    result = search_image(dataset_names, file, (x, y, w, h))
+    result = search_image(dataset_names, file, (x, y, w, h), top_k)
     if isinstance(result, dict) and "error" in result:
         print(f"检索失败: {result['error']}")
         return jsonify({"msg": result["error"]}), 400

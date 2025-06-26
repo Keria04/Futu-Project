@@ -26,14 +26,70 @@
           <img :src="previewUrl" class="preview-img-full" />
         </div>
       </div>
+      
+      <!-- 图片框选功能 -->
+      <div v-if="previewUrl" class="crop-section">
+        <h3 class="crop-title">框选要搜索的区域（可选）</h3>
+        <ImageCropper
+          :image-url="previewUrl"
+          @crop-change="onCropChange"
+          @cropped-image="onCroppedImage"
+          ref="imageCropperRef"
+        />
+        <div class="crop-info">
+          <p v-if="!hasCroppedImage" class="crop-hint">
+            🖱️ 在图片上拖拽鼠标来框选要搜索的区域，或直接搜索整张图片
+          </p>
+          <p v-else class="crop-success">
+            ✅ 已框选区域，将使用框选后的图片进行搜索
+          </p>
+        </div>
+      </div>
+      
       <ProgressBar :progress="searchProgress" :is-visible="showProgressBar" />
-      <button 
-        class="btn btn-search" 
-        :disabled="!selectedFile || loading"
-        @click="searchImage"
-      >
-        {{ loading ? '检索中...' : '上传并检索' }}
-      </button>
+      
+      <!-- 检索数量选择 -->
+      <div class="search-config">
+        <div class="config-item">
+          <label for="topK" class="config-label">检索数量：</label>
+          <input 
+            id="topK"
+            v-model.number="topK" 
+            type="number" 
+            min="1" 
+            max="128"
+            class="config-input"
+            :class="{ 'error': topKError }"
+            @input="validateTopK"
+            placeholder="输入1-128之间的数字"
+          />
+          <span class="config-unit">张</span>
+        </div>
+        <div v-if="topKError" class="error-message">
+          {{ topKErrorMessage }}
+        </div>
+        <div class="config-hint">
+          建议检索数量不超过50张以获得更好的性能
+        </div>
+      </div>
+      
+      <div class="search-buttons">
+        <button 
+          class="btn btn-search" 
+          :disabled="!selectedFile || loading"
+          @click="searchImage"
+        >
+          {{ loading ? '检索中...' : (hasCroppedImage ? '搜索框选区域' : '搜索整张图片') }}
+        </button>
+        <button 
+          v-if="hasCroppedImage"
+          class="btn btn-reset" 
+          @click="resetCrop"
+          :disabled="loading"
+        >
+          重置框选
+        </button>
+      </div>
     </div>
     <MessageDisplay 
       v-if="message"
@@ -55,6 +111,7 @@ import { useDatasetManager } from '../../composables/useDatasetManager.js'
 import { useLoading } from '../../composables/useLoading.js'
 import DatasetManager from '../Common/DatasetManager.vue'
 import ImageCanvas from '../Common/ImageCanvas.vue'
+import ImageCropper from '../Common/ImageCropper.vue'
 import MessageDisplay from '../Common/MessageDisplay.vue'
 import SearchResults from './SearchResults.vue'
 import ProgressBar from '../Common/ProgressBar.vue'
@@ -78,6 +135,7 @@ const { loading, message, startLoading, stopLoading } = useLoading()
 // 组件引用
 const fileInputRef = ref(null)
 const imageCanvasRef = ref(null)
+const imageCropperRef = ref(null)
 
 // 搜索结果
 const results = ref([])
@@ -85,6 +143,39 @@ const selectedFile = ref(null)
 const messageType = ref('info')
 const searchProgress = ref(0)
 const showProgressBar = ref(false)
+
+// 检索数量配置
+const topK = ref(10)
+const topKError = ref(false)
+const topKErrorMessage = ref('')
+
+// 框选相关状态
+const hasCroppedImage = ref(false)
+const croppedImageFile = ref(null)
+const cropArea = ref({ x: 0, y: 0, w: 0, h: 0 })
+
+/**
+ * 验证检索数量
+ */
+function validateTopK() {
+  const value = topK.value
+  topKError.value = false
+  topKErrorMessage.value = ''
+  
+  if (!value || value < 1) {
+    topKError.value = true
+    topKErrorMessage.value = '检索数量必须大于0'
+    return false
+  }
+  
+  if (value > 128) {
+    topKError.value = true
+    topKErrorMessage.value = '检索数量不能超过128张，请重新输入'
+    return false
+  }
+  
+  return true
+}
 
 /**
  * 处理文件选择
@@ -96,10 +187,55 @@ function onFileChange(event) {
   selectedFile.value = file
   handleFileChange(file)
   
+  // 重置框选状态
+  resetCropState()
+  
   // 将 canvas ref 传递给 composable
   if (imageCanvasRef.value) {
     canvasRef.value = imageCanvasRef.value.canvasRef
   }
+}
+
+/**
+ * 处理框选区域变化
+ */
+function onCropChange(cropData) {
+  cropArea.value = cropData
+  crop.x = cropData.x
+  crop.y = cropData.y
+  crop.w = cropData.w
+  crop.h = cropData.h
+}
+
+/**
+ * 处理框选后的图片
+ */
+function onCroppedImage(file) {
+  croppedImageFile.value = file
+  hasCroppedImage.value = true
+  message.value = '已框选区域，将使用框选后的图片进行搜索'
+  messageType.value = 'success'
+}
+
+/**
+ * 重置框选状态
+ */
+function resetCropState() {
+  hasCroppedImage.value = false
+  croppedImageFile.value = null
+  cropArea.value = { x: 0, y: 0, w: 0, h: 0 }
+}
+
+/**
+ * 重置框选
+ */
+function resetCrop() {
+  resetCropState()
+  if (imageCropperRef.value) {
+    imageCropperRef.value.resetCrop()
+  }
+  message.value = '已重置框选，将搜索整张图片'
+  messageType.value = 'info'
 }
 
 /**
@@ -134,20 +270,44 @@ async function searchImage() {
     messageType.value = 'warning'
     return
   }
+  
+  // 验证检索数量
+  if (!validateTopK()) {
+    messageType.value = 'warning'
+    return
+  }
 
-  startLoading('正在检索图片...')
+  startLoading(hasCroppedImage.value ? '正在检索框选区域...' : '正在检索图片...')
   results.value = []
   messageType.value = 'info'
   
   const formData = new FormData()
-  formData.append('query_img', selectedFile.value)
-  formData.append('crop_x', crop.x)
-  formData.append('crop_y', crop.y)
-  formData.append('crop_w', crop.w)
-  formData.append('crop_h', crop.h)
+  
+  // 如果有框选的图片，使用框选后的图片，否则使用原图片
+  if (hasCroppedImage.value && croppedImageFile.value) {
+    formData.append('query_img', croppedImageFile.value)
+    // 框选后的图片不需要再传递裁剪坐标
+    formData.append('crop_x', 0)
+    formData.append('crop_y', 0)
+    formData.append('crop_w', 0)
+    formData.append('crop_h', 0)
+  } else {
+    formData.append('query_img', selectedFile.value)
+    formData.append('crop_x', crop.x)
+    formData.append('crop_y', crop.y)
+    formData.append('crop_w', crop.w)
+    formData.append('crop_h', crop.h)
+  }
+  
   validation.names.forEach(name => {
     formData.append('dataset_names[]', name)
   })
+  
+  // 添加检索数量参数
+  formData.append('top_k', topK.value)
+  
+  // 添加检索数量
+  formData.append('top_k', topK.value)
 
   try {
     const response = await searchApi.searchImage(formData)
@@ -156,7 +316,8 @@ async function searchImage() {
       message.value = '未找到相似图片'
       messageType.value = 'info'
     } else {
-      message.value = `找到 ${results.value.length} 张相似图片`
+      const searchType = hasCroppedImage.value ? '框选区域' : '图片'
+      message.value = `在${searchType}中找到 ${results.value.length} 张相似图片`
       messageType.value = 'success'
     }
   } catch (error) {
@@ -311,5 +472,126 @@ function triggerFileInput() {
   cursor: not-allowed;
   opacity: 0.7;
   transform: none;
+}
+
+/* 新增的框选功能样式 */
+.crop-section {
+  width: 100%;
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+}
+
+.crop-title {
+  font-size: 1.2rem;
+  color: #333;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.crop-info {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.crop-hint {
+  color: #666;
+  font-size: 0.95rem;
+  margin: 0;
+  padding: 0.5rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.crop-success {
+  color: #42b983;
+  font-size: 0.95rem;
+  margin: 0;
+  padding: 0.5rem;
+  background: #f0f9ff;
+  border-radius: 8px;
+  border: 1px solid #42b983;
+  font-weight: 500;
+}
+
+/* 检索配置样式 */
+.search-config {
+  width: 100%;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.config-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.config-label {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.config-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 120px;
+  transition: border-color 0.2s;
+}
+
+.config-input:focus {
+  outline: none;
+  border-color: #42b983;
+}
+
+.config-input.error {
+  border-color: #e74c3c;
+  background-color: #fdf2f2;
+}
+
+.config-unit {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.config-hint {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.5rem;
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+@media (max-width: 768px) {
+  .crop-section {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  
+  .search-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .btn {
+    width: 100%;
+    max-width: 200px;
+  }
 }
 </style>

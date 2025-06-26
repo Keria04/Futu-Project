@@ -43,7 +43,7 @@ def get_features_and_ids(dataset_id):
     ids = np.array(ids, dtype='int64')
     return features, ids, image_paths, descriptions
 
-def search_image(dataset_names, file_storage, crop_box):
+def search_image(dataset_names, file_storage, crop_box, top_k=10):
     """
     工厂接口：处理图片检索
     :param dataset_names: 数据集名称列表
@@ -91,7 +91,7 @@ def search_image(dataset_names, file_storage, crop_box):
     # 使用 faiss_module.search_index 查找 top
     # 索引文件名约定为 {数据集编号}.index
     index_names = [f"{dataset_id}.index" for dataset_id in dataset_ids]
-    indices, similarities = search_index(query_feat, index_names, top_k=5)
+    indices, similarities = search_index(query_feat, index_names, top_k)
 
     results = []
     for idx, sim in zip(indices, similarities):
