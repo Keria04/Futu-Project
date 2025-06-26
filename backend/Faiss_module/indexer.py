@@ -101,8 +101,13 @@ class FaissIndexer:
         self.index = self.to_gpu(self.index)
 
     def save_index(self):
+        """保存索引到文件。如果索引在 GPU 上，会先转回 CPU 再保存"""
         if self.index:
-            faiss.write_index(self.index, self.index_path)
+            # 如果索引在 GPU 上，先转回 CPU
+            cpu_index = self.to_cpu(self.index)
+            faiss.write_index(cpu_index, self.index_path)
+            print(f"索引已保存到: {self.index_path}")
+
     def load_index(self):
         if os.path.exists(self.index_path):
             self.index = faiss.read_index(self.index_path)
@@ -134,9 +139,15 @@ class FaissIndexer:
         if self.index is None:
             raise ValueError("Index not loaded")
 
+        # 如果索引在 GPU 上，先转回 CPU 执行更新操作
+        cpu_index = self.to_cpu(self.index)
+
         # 先移除旧的 ID（如果存在）
         id_selector = faiss.IDSelectorBatch(new_ids.size, faiss.swig_ptr(new_ids))
-        self.index.remove_ids(id_selector)
+        cpu_index.remove_ids(id_selector)
 
         # 添加新向量
-        self.index.add_with_ids(new_features, new_ids)
+        cpu_index.add_with_ids(new_features, new_ids)
+
+        # 更新完成后，将索引转回 GPU（如果使用 GPU）
+        self.index = self.to_gpu(cpu_index)
