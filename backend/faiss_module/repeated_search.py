@@ -53,13 +53,26 @@ def repeated_search(index_id, threshold: float = 95.0, deduplicate: bool = False
     visited = set()
     duplicates = []
 
+    # GPU 模式下的最大 k 值
+    MAX_K_GPU = 2048
+
     for i in range(total_ids):
         current_id = id_list[i]
         if current_id in visited:
             continue
 
         query_vec = xb[i].reshape(1, -1)
-        distances, neighbors = indexer.index.search(query_vec, total_ids)
+
+        # 检查是否使用 GPU 模式
+        is_gpu_index = hasattr(indexer.index, 'getMaxKSelection')
+
+        if is_gpu_index:
+            # GPU 模式：分批搜索
+            k = min(MAX_K_GPU, total_ids)
+            distances, neighbors = indexer.index.search(query_vec, k)
+        else:
+            # CPU 模式：直接搜索全部
+            distances, neighbors = indexer.index.search(query_vec, total_ids)
 
         group = []
         for d, neighbor_id in zip(distances[0], neighbors[0]):
