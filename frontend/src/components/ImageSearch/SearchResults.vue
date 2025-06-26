@@ -1,5 +1,5 @@
 <template>
-  <div class="search-results">
+  <div class="search-results" :class="{ 'results-show': results.length > 0 }">
     <h3 class="results-title">检索结果 ({{ results.length }})</h3>
     
     <div class="results-grid">
@@ -7,6 +7,7 @@
         v-for="(item, index) in results" 
         :key="`${item.idx}-${item.dataset}-${index}`"
         class="result-item"
+        :style="{ 'animation-delay': (index * 0.1) + 's' }"
       >
         <div class="result-image" @click="openImageModal(item)">
           <img 
@@ -28,7 +29,10 @@
             <div class="similarity-progress">
               <div 
                 class="similarity-progress-bar" 
-                :style="{ width: item.similarity + '%' }"
+                :style="{ 
+                  '--progress-width': item.similarity + '%',
+                  width: item.similarity + '%'
+                }"
                 :key="`similarity-${animationKey}-${item.idx}-${index}`"
               ></div>
             </div>
@@ -73,33 +77,35 @@
       </div>
     </div>
 
-    <!-- 图片放大模态框 -->
-    <div 
-      v-if="selectedImage" 
-      class="image-modal" 
-      @click="closeImageModal"
-    >
-      <div class="modal-content" @click.stop>
-        <button class="modal-close" @click="closeImageModal">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-        <img 
-          :src="selectedImage.img_url" 
-          :alt="selectedImage.fname"
-          class="modal-image"
-          @error="handleImageError"
-        />
-        <div class="modal-info">
-          <h4 class="modal-title">{{ selectedImage.fname }}</h4>
-          <div v-if="selectedImage.similarity !== undefined" class="modal-similarity">
-            相似度: {{ selectedImage.similarity.toFixed(1) }}%
+    <!-- 图片放大模态框 - 使用 Teleport 渲染到 body -->
+    <Teleport to="body">
+      <div 
+        v-if="selectedImage" 
+        class="image-modal" 
+        @click="closeImageModal"
+      >
+        <div class="modal-content" @click.stop>
+          <button class="modal-close" @click="closeImageModal">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <img 
+            :src="selectedImage.img_url" 
+            :alt="selectedImage.fname"
+            class="modal-image"
+            @error="handleImageError"
+          />
+          <div class="modal-info">
+            <h4 class="modal-title">{{ selectedImage.fname }}</h4>
+            <div v-if="selectedImage.similarity !== undefined" class="modal-similarity">
+              相似度: {{ selectedImage.similarity.toFixed(1) }}%
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -122,15 +128,42 @@ const selectedImage = ref(null)
 // 打开图片模态框
 function openImageModal(item) {
   selectedImage.value = item
-  // 阻止页面滚动
+  
+  // 记录当前滚动位置
+  const scrollY = window.scrollY
+  
+  // 完全锁定页面滚动
   document.body.style.overflow = 'hidden'
+  document.documentElement.style.overflow = 'hidden'
+  document.body.style.position = 'fixed'
+  document.body.style.top = `-${scrollY}px`
+  document.body.style.width = '100%'
+  document.body.style.height = '100%'
+  
+  // 存储滚动位置以便恢复
+  document.body.setAttribute('data-scroll-y', scrollY.toString())
 }
 
 // 关闭图片模态框
 function closeImageModal() {
+  // 获取之前的滚动位置
+  const scrollY = document.body.getAttribute('data-scroll-y') || '0'
+  
   selectedImage.value = null
-  // 恢复页面滚动
-  document.body.style.overflow = 'auto'
+  
+  // 恢复页面滚动和位置
+  document.body.style.overflow = ''
+  document.documentElement.style.overflow = ''
+  document.body.style.position = ''
+  document.body.style.top = ''
+  document.body.style.width = ''
+  document.body.style.height = ''
+  
+  // 恢复滚动位置
+  window.scrollTo(0, parseInt(scrollY))
+  
+  // 清理数据属性
+  document.body.removeAttribute('data-scroll-y')
 }
 
 // ESC键关闭模态框
@@ -148,8 +181,22 @@ onMounted(() => {
 // 组件卸载时移除键盘事件监听
 onUnmounted(() => {
   document.removeEventListener('keydown', handleEscKey)
+  
   // 确保页面滚动恢复正常
-  document.body.style.overflow = 'auto'
+  const scrollY = document.body.getAttribute('data-scroll-y') || '0'
+  document.body.style.overflow = ''
+  document.documentElement.style.overflow = ''
+  document.body.style.position = ''
+  document.body.style.top = ''
+  document.body.style.width = ''
+  document.body.style.height = ''
+  
+  // 如果有保存的滚动位置，恢复它
+  if (scrollY !== '0') {
+    window.scrollTo(0, parseInt(scrollY))
+  }
+  
+  document.body.removeAttribute('data-scroll-y')
 })
 
 // 监听结果变化，触发动画重新播放
@@ -211,6 +258,18 @@ function handleImageError(event) {
 <style scoped>
 .search-results {
   margin-top: 2rem;
+  opacity: 0;
+  transform: translateY(-30px);
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-results.results-show {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: none;
+  overflow: visible;
 }
 
 .results-title {
@@ -218,6 +277,20 @@ function handleImageError(event) {
   color: #333;
   margin-bottom: 1rem;
   font-weight: 600;
+  opacity: 0;
+  transform: translateX(-20px);
+  animation: titleSlideIn 0.5s ease-out 0.2s forwards;
+}
+
+@keyframes titleSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .results-grid {
@@ -231,7 +304,25 @@ function handleImageError(event) {
   border-radius: 12px;
   padding: 1rem;
   border: 1px solid #e1e8ed;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  transform: translateY(40px) scale(0.9);
+  animation: fadeInUpBounce 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes fadeInUpBounce {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.9);
+  }
+  60% {
+    opacity: 0.8;
+    transform: translateY(-5px) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .result-item:hover {
@@ -319,9 +410,11 @@ function handleImageError(event) {
   height: 100%;
   background: linear-gradient(90deg, #4fc3f7 0%, #29b6f6 50%, #03a9f4 100%);
   border-radius: 4px;
-  transition: width 1.5s ease-out;
-  animation: progressSlide 1.5s ease-out;
+  width: 0%;
+  transition: width 2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: progressSlide 2s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
   position: relative;
+  box-shadow: 0 2px 8px rgba(3, 169, 244, 0.3);
 }
 
 .similarity-progress-bar::after {
@@ -331,22 +424,33 @@ function handleImageError(event) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
-  animation: shimmer 2s infinite;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  animation: shimmer 2.5s infinite 1s;
+  border-radius: 4px;
 }
 
 @keyframes progressSlide {
   0% {
     width: 0%;
+    transform: scaleX(0);
+  }
+  100% {
+    width: var(--progress-width, 0%);
+    transform: scaleX(1);
   }
 }
 
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
   }
   100% {
     transform: translateX(100%);
+    opacity: 0;
   }
 }
 
@@ -439,20 +543,26 @@ function handleImageError(event) {
   }
 }
 
-/* 图片模态框样式 */
+/* 图片模态框样式 - 覆盖整个浏览器页面 */
 .image-modal {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  z-index: 1000;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: modalFadeIn 0.3s ease-out;
+  animation: modalFadeIn 0.4s ease-out;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 .modal-content {
@@ -460,32 +570,37 @@ function handleImageError(event) {
   max-width: 90vw;
   max-height: 90vh;
   background: white;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: modalSlideIn 0.3s ease-out;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+  animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 .modal-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 40px;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.6);
-  border: none;
+  top: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   color: white;
   cursor: pointer;
-  z-index: 1001;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .modal-close:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.1);
 }
 
 .modal-image {
@@ -516,20 +631,26 @@ function handleImageError(event) {
 }
 
 @keyframes modalFadeIn {
-  from {
+  0% {
     opacity: 0;
+    background: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
   }
-  to {
+  100% {
     opacity: 1;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 }
 
 @keyframes modalSlideIn {
-  from {
-    transform: scale(0.9) translateY(-20px);
+  0% {
+    transform: scale(0.7) translateY(-50px);
     opacity: 0;
   }
-  to {
+  100% {
     transform: scale(1) translateY(0);
     opacity: 1;
   }

@@ -125,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { searchApi } from '../../services/api.js'
 import { useImageHandler } from '../../composables/useImageHandler.js'
 import { useDatasetManager } from '../../composables/useDatasetManager.js'
@@ -332,7 +332,10 @@ async function searchImage() {
   }
 
   startLoading(hasCroppedImage.value ? '正在检索框选区域...' : '正在检索图片...')
+  
+  // 清空之前的结果，确保动画能够正确触发
   results.value = []
+  
   messageType.value = 'info'
   
   const formData = new FormData()
@@ -365,7 +368,11 @@ async function searchImage() {
 
   try {
     const response = await searchApi.searchImage(formData)
+    
+    // 使用 nextTick 确保 DOM 更新后再设置结果，以触发动画
+    await nextTick()
     results.value = response.data.results || []
+    
     if (results.value.length === 0) {
       message.value = '未找到相似图片'
       messageType.value = 'info'
