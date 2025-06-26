@@ -32,22 +32,6 @@
             图片检索
           </button>
           
-          <!--
-          <button 
-            class="nav-button"
-            :class="{ active: currentView === 'index' }"
-            @click="switchView('index')"
-          >
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M3 7V5c0-1.1.9-2 2-2h2l2 2h6c1.1 0 2 .9 2 2v2"/>
-              <path d="M3 7v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7"/>
-              <path d="M8 12h8"/>
-              <path d="M12 8v8"/>
-            </svg>
-            构建索引
-          </button>
-          -->
-          
           <button 
             class="nav-button"
             :class="{ active: currentView === 'duplicate' }"

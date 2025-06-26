@@ -55,9 +55,9 @@
 
           <!-- 数据集描述 -->
           <div class="dataset-content">
-            <h4 class="content-title">Title</h4>
-            <p class="content-subtitle">Subhead</p>
-            <p class="content-description">{{ dataset.description }}</p>
+            <h4 class="content-title">{{ dataset.name }}</h4>
+            <p class="content-subtitle">数据集 {{ dataset.id }}</p>
+            <p class="content-description">{{ dataset.description || '上传图片后将自动构建索引，便于快速检索' }}</p>
           </div>
 
           <!-- 操作按钮 -->
@@ -72,9 +72,26 @@
             <button 
               class="action-button primary"
               @click.stop="() => triggerUpload(dataset)"
+              :disabled="showUploadProgress[dataset.id]"
             >
-              上传图片
+              {{ showUploadProgress[dataset.id] ? '处理中...' : '上传图片' }}
             </button>
+          </div>
+
+          <!-- 上传进度显示 -->
+          <div v-if="showUploadProgress[dataset.id]" class="upload-progress">
+            <div class="progress-bar">
+              <div 
+                class="progress-fill" 
+                :style="{ width: uploadProgress[dataset.id] + '%' }"
+              ></div>
+            </div>
+            <div 
+              class="progress-message"
+              :class="uploadMessageType[dataset.id]"
+            >
+              {{ uploadMessage[dataset.id] }}
+            </div>
           </div>
         </div>
       </div>
@@ -89,12 +106,18 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { datasetApi } from '@/services/api'
+import { datasetApi, indexApi } from '@/services/api'
 
 // 响应式数据
 const datasets = ref([])
 const loading = ref(false)
 const selectedDatasets = ref([])
+
+// 上传相关状态
+const uploadProgress = ref({})
+const showUploadProgress = ref({})
+const uploadMessage = ref({})
+const uploadMessageType = ref({})
 
 // 获取数据集列表
 const fetchDatasets = async () => {
@@ -153,17 +176,104 @@ onMounted(() => {
 const handleUpload = async (event, dataset) => {
   const files = event.target.files
   if (!files || files.length === 0) return
+  
+  // 初始化上传状态
+  showUploadProgress.value[dataset.id] = true
+  uploadProgress.value[dataset.id] = 0
+  uploadMessage.value[dataset.id] = '正在上传图片...'
+  uploadMessageType.value[dataset.id] = 'info'
+  
   const formData = new FormData()
   for (let i = 0; i < files.length; i++) {
     formData.append('images', files[i])
   }
   formData.append('dataset', dataset.id)
+  
   try {
+    // 1. 上传图片
     const res = await datasetApi.uploadImages(formData)
-    alert('上传成功，返回：' + JSON.stringify(res.data))
+    uploadMessage.value[dataset.id] = '图片上传成功，正在构建索引...'
+    uploadMessageType.value[dataset.id] = 'success'
+    
+    // 2. 自动构建索引
+    await buildIndexForDataset(dataset)
+    
   } catch (err) {
-    alert('上传失败')
+    uploadMessage.value[dataset.id] = '上传失败'
+    uploadMessageType.value[dataset.id] = 'error'
+    showUploadProgress.value[dataset.id] = false
   }
+}
+
+// 为特定数据集构建索引
+const buildIndexForDataset = async (dataset) => {
+  try {
+    uploadMessage.value[dataset.id] = '正在构建索引...'
+    uploadProgress.value[dataset.id] = 0
+    
+    const response = await indexApi.buildIndex([dataset.name], false)
+    
+    // 开始轮询进度
+    if (response.data.progress && response.data.progress.length > 0) {
+      const progressUrl = response.data.progress[0].progress_file
+      await pollIndexProgress(progressUrl, dataset.id)
+    } else {
+      // 没有进度文件，直接完成
+      uploadProgress.value[dataset.id] = 100
+      uploadMessage.value[dataset.id] = '索引构建完成'
+      uploadMessageType.value[dataset.id] = 'success'
+      setTimeout(() => {
+        showUploadProgress.value[dataset.id] = false
+      }, 2000)
+    }
+  } catch (error) {
+    uploadMessage.value[dataset.id] = '索引构建失败'
+    uploadMessageType.value[dataset.id] = 'error'
+    setTimeout(() => {
+      showUploadProgress.value[dataset.id] = false
+    }, 3000)
+  }
+}
+
+// 轮询索引构建进度
+const pollIndexProgress = async (progressUrl, datasetId) => {
+  return new Promise((resolve, reject) => {
+    const timer = setInterval(async () => {
+      try {
+        const resp = await indexApi.getProgress(progressUrl)
+        if (typeof resp.data.progress === 'number') {
+          uploadProgress.value[datasetId] = resp.data.progress
+        }
+        
+        if (resp.data.status === 'done') {
+          clearInterval(timer)
+          uploadProgress.value[datasetId] = 100
+          uploadMessage.value[datasetId] = '索引构建完成'
+          uploadMessageType.value[datasetId] = 'success'
+          setTimeout(() => {
+            showUploadProgress.value[datasetId] = false
+          }, 2000)
+          resolve()
+        } else if (resp.data.status === 'error') {
+          clearInterval(timer)
+          uploadMessage.value[datasetId] = '索引构建失败'
+          uploadMessageType.value[datasetId] = 'error'
+          setTimeout(() => {
+            showUploadProgress.value[datasetId] = false
+          }, 3000)
+          reject(new Error('索引构建失败'))
+        }
+      } catch (e) {
+        clearInterval(timer)
+        uploadMessage.value[datasetId] = '获取构建进度失败'
+        uploadMessageType.value[datasetId] = 'error'
+        setTimeout(() => {
+          showUploadProgress.value[datasetId] = false
+        }, 3000)
+        reject(e)
+      }
+    }, 1000)
+  })
 }
 const triggerUpload = (dataset) => {
   document.getElementById('upload-' + dataset.id).click()
@@ -426,13 +536,54 @@ const triggerUpload = (dataset) => {
   color: white;
 }
 
-.action-button.primary:hover {
+.action-button.primary:hover:not(:disabled) {
   background: #5a6fd8;
 }
 
 .action-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* 上传进度 */
+.upload-progress {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #42b983 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-message {
+  font-size: 0.85rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+.progress-message.info {
+  color: #667eea;
+}
+
+.progress-message.success {
+  color: #42b983;
+}
+
+.progress-message.error {
+  color: #e74c3c;
 }
 
 /* 加载状态 */

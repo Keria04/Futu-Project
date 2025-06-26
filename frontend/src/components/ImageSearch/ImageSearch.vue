@@ -26,13 +26,13 @@
           <img :src="previewUrl" class="preview-img-full" />
         </div>
       </div>
-      <ProgressBar :progress="buildProgress" :is-visible="showProgressBar" />
+      <ProgressBar :progress="searchProgress" :is-visible="showProgressBar" />
       <button 
         class="btn btn-search" 
         :disabled="!selectedFile || loading"
         @click="searchImage"
       >
-        {{ loading ? (showProgressBar ? '索引中...' : '检索中...') : '上传并检索' }}
+        {{ loading ? '检索中...' : '上传并检索' }}
       </button>
     </div>
     <MessageDisplay 
@@ -49,7 +49,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { searchApi, indexApi } from '../../services/api.js'
+import { searchApi } from '../../services/api.js'
 import { useImageHandler } from '../../composables/useImageHandler.js'
 import { useDatasetManager } from '../../composables/useDatasetManager.js'
 import { useLoading } from '../../composables/useLoading.js'
@@ -83,7 +83,7 @@ const imageCanvasRef = ref(null)
 const results = ref([])
 const selectedFile = ref(null)
 const messageType = ref('info')
-const buildProgress = ref(0)
+const searchProgress = ref(0)
 const showProgressBar = ref(false)
 
 /**
@@ -120,7 +120,7 @@ function handleMouseUp(event) {
 }
 
 /**
- * 执行图片索引构建+检索
+ * 执行图片检索（直接查询，不构建索引）
  */
 async function searchImage() {
   const validation = validateDatasets()
@@ -134,31 +134,11 @@ async function searchImage() {
     messageType.value = 'warning'
     return
   }
-  startLoading('正在构建索引...')
+
+  startLoading('正在检索图片...')
   results.value = []
   messageType.value = 'info'
-  showProgressBar.value = true
-  buildProgress.value = 0
-  let progressUrl = ''
-  try {
-    const buildResp = await indexApi.buildIndex(validation.names, false)
-    if (buildResp.data.progress && buildResp.data.progress.length > 0) {
-      progressUrl = buildResp.data.progress[0].progress_file
-      await pollIndexProgress(progressUrl)
-    } else {
-      // 没有返回进度文件，直接跳过
-      showProgressBar.value = false
-    }
-  } catch (e) {
-    showProgressBar.value = false
-    message.value = '索引构建失败，请重试'
-    messageType.value = 'error'
-    stopLoading()
-    return
-  }
-  showProgressBar.value = false
-  // 2. 索引构建完成后自动检索
-  startLoading('正在检索图片...')
+  
   const formData = new FormData()
   formData.append('query_img', selectedFile.value)
   formData.append('crop_x', crop.x)
@@ -168,6 +148,7 @@ async function searchImage() {
   validation.names.forEach(name => {
     formData.append('dataset_names[]', name)
   })
+
   try {
     const response = await searchApi.searchImage(formData)
     results.value = response.data.results || []
@@ -179,46 +160,24 @@ async function searchImage() {
       messageType.value = 'success'
     }
   } catch (error) {
-    message.value = '检索失败，请重试'
-    messageType.value = 'error'
+    // 如果是索引不存在的错误，给出友好提示
+    if (error.response && error.response.data && error.response.data.error) {
+      const errorMsg = error.response.data.error
+      if (errorMsg.includes('index') || errorMsg.includes('索引')) {
+        message.value = '请先在数据集管理页面上传图片以构建索引'
+        messageType.value = 'warning'
+      } else {
+        message.value = errorMsg
+        messageType.value = 'error'
+      }
+    } else {
+      message.value = '检索失败，请重试'
+      messageType.value = 'error'
+    }
     console.error('Search error:', error)
   } finally {
     stopLoading()
   }
-}
-
-async function pollIndexProgress(progressUrl) {
-  return new Promise((resolve, reject) => {
-    let lastProgress = 0
-    const timer = setInterval(async () => {
-      try {
-        const resp = await indexApi.getProgress(progressUrl)
-        if (typeof resp.data.progress === 'number') {
-          buildProgress.value = resp.data.progress
-          lastProgress = resp.data.progress
-        }
-        if (resp.data.status === 'done') {
-          clearInterval(timer)
-          buildProgress.value = 100
-          resolve()
-        } else if (resp.data.status === 'error') {
-          clearInterval(timer)
-          reject(new Error('索引构建失败'))
-        } else if (resp.data.status === 'pending' && lastProgress === 0) {
-          // 超时保护：如果一直pending，10秒后自动跳过
-          setTimeout(() => {
-            if (buildProgress.value === 0) {
-              clearInterval(timer)
-              reject(new Error('索引构建超时'))
-            }
-          }, 10000)
-        }
-      } catch (e) {
-        clearInterval(timer)
-        reject(e)
-      }
-    }, 1000)
-  })
 }
 
 /**

@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import AppLayoutWithNav from './components/Layout/AppLayoutWithNav.vue'
 import DatasetOverview from './components/DatasetOverview/DatasetOverview.vue'
-import IndexBuilder from './components/IndexBuilder/IndexBuilder.vue'
 import ImageSearch from './components/ImageSearch/ImageSearch.vue'
 import DuplicateDetector from './components/DuplicateDetector/DuplicateDetector.vue'
 
@@ -23,11 +22,6 @@ const handleViewChange = (view) => {
     <!-- 图片检索 -->
     <div v-else-if="currentView === 'search'" class="module-container">
       <ImageSearch />
-    </div>
-    
-    <!-- 索引构建 -->
-    <div v-else-if="currentView === 'index'" class="module-container">
-      <IndexBuilder />
     </div>
     
     <!-- 重复检测 -->
