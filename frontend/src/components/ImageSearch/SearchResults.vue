@@ -8,7 +8,7 @@
         :key="`${item.idx}-${item.dataset}-${index}`"
         class="result-item"
       >
-        <div class="result-image">
+        <div class="result-image" @click="openImageModal(item)">
           <img 
             :src="item.img_url" 
             :alt="item.fname"
@@ -72,11 +72,39 @@
         </div>
       </div>
     </div>
+
+    <!-- 图片放大模态框 -->
+    <div 
+      v-if="selectedImage" 
+      class="image-modal" 
+      @click="closeImageModal"
+    >
+      <div class="modal-content" @click.stop>
+        <button class="modal-close" @click="closeImageModal">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <img 
+          :src="selectedImage.img_url" 
+          :alt="selectedImage.fname"
+          class="modal-image"
+          @error="handleImageError"
+        />
+        <div class="modal-info">
+          <h4 class="modal-title">{{ selectedImage.fname }}</h4>
+          <div v-if="selectedImage.similarity !== undefined" class="modal-similarity">
+            相似度: {{ selectedImage.similarity.toFixed(1) }}%
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   results: {
@@ -87,6 +115,42 @@ const props = defineProps({
 
 // 动画触发键，用于强制重新触发动画
 const animationKey = ref(0)
+
+// 选中的图片信息
+const selectedImage = ref(null)
+
+// 打开图片模态框
+function openImageModal(item) {
+  selectedImage.value = item
+  // 阻止页面滚动
+  document.body.style.overflow = 'hidden'
+}
+
+// 关闭图片模态框
+function closeImageModal() {
+  selectedImage.value = null
+  // 恢复页面滚动
+  document.body.style.overflow = 'auto'
+}
+
+// ESC键关闭模态框
+function handleEscKey(event) {
+  if (event.key === 'Escape' && selectedImage.value) {
+    closeImageModal()
+  }
+}
+
+// 组件挂载时添加键盘事件监听
+onMounted(() => {
+  document.addEventListener('keydown', handleEscKey)
+})
+
+// 组件卸载时移除键盘事件监听
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEscKey)
+  // 确保页面滚动恢复正常
+  document.body.style.overflow = 'auto'
+})
 
 // 监听结果变化，触发动画重新播放
 watch(() => props.results, () => {
@@ -185,6 +249,13 @@ function handleImageError(event) {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.result-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .result-image img {
@@ -365,6 +436,124 @@ function handleImageError(event) {
   
   .result-image {
     height: 150px;
+  }
+}
+
+/* 图片模态框样式 */
+.image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+.modal-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.modal-image {
+  display: block;
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.modal-info {
+  padding: 20px;
+  background: white;
+  border-top: 1px solid #eee;
+}
+
+.modal-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+  word-break: break-all;
+}
+
+.modal-similarity {
+  color: #2196f3;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: scale(0.9) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal-content {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+  
+  .modal-image {
+    max-height: 70vh;
+  }
+  
+  .modal-info {
+    padding: 16px;
+  }
+  
+  .modal-close {
+    width: 36px;
+    height: 36px;
+    top: 12px;
+    right: 12px;
   }
 }
 </style>
