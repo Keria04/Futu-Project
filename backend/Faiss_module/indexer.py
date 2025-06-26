@@ -6,11 +6,13 @@ indexer.py
 - 建立带ID的Faiss索引（支持训练与压缩）
 - 加载与保存索引
 - 执行向量查询并返回相似项ID
+- 支持GPU加速（如果可用）
 """
 import faiss
 import numpy as np
 import os
 import math
+
 class FaissIndexer:
     """
        FaissIndexer 类用于构建、保存、加载和查询 FAISS 索引。
@@ -19,12 +21,48 @@ class FaissIndexer:
            index_path (str): 索引文件保存路径。
            use_IVF (bool): 是否启用 IVF 聚类（默认启用）。
            index: FAISS 索引对象。
+           use_gpu (bool): 是否使用 GPU
+           gpu_resources: GPU 资源对象
     """
     def __init__(self, dim, index_path, use_IVF):
         self.dim = dim
         self.index_path = index_path
         self.use_IVF = use_IVF
         self.index = None
+        self.use_gpu = False
+        self.gpu_resources = None
+
+        # 检测是否可以使用 GPU
+        self.init_gpu()
+
+    def init_gpu(self):
+        """初始化 GPU 资源"""
+        try:
+            ngpus = faiss.get_num_gpus()
+            if ngpus > 0:
+                self.use_gpu = True
+                # 使用第一个可用的 GPU
+                res = faiss.StandardGpuResources()
+                self.gpu_resources = res
+                print(f"成功初始化 GPU 资源，可用 GPU 数量: {ngpus}")
+            else:
+                print("未检测到可用的 GPU，将使用 CPU 模式")
+        except Exception as e:
+            print(f"GPU 初始化失败，将使用 CPU 模式: {str(e)}")
+            self.use_gpu = False
+
+    def to_gpu(self, index):
+        """将索引转移到 GPU"""
+        if self.use_gpu and self.gpu_resources is not None:
+            return faiss.index_cpu_to_gpu(self.gpu_resources, 0, index)
+        return index
+
+    def to_cpu(self, index):
+        """将索引转移回 CPU"""
+        if self.use_gpu:
+            return faiss.index_gpu_to_cpu(index)
+        return index
+
     def build_index(self, features: np.ndarray, ids: np.ndarray):
         """
         构建压缩索引，并绑定自定义图像ID。
@@ -58,6 +96,9 @@ class FaissIndexer:
             id_index.add_with_ids(features, ids)
             self.index = id_index
             print("[√] 使用 Flat 索引构建完成（测试用途）")
+
+        # 如果可用，将索引转移到 GPU
+        self.index = self.to_gpu(self.index)
 
     def save_index(self):
         if self.index:
