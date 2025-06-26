@@ -19,8 +19,7 @@
           class="threshold-input"
         />
         <span class="threshold-unit">%</span>
-      </div>
-      <button 
+      </div>      <button 
         class="btn btn-detect" 
         :disabled="loading"
         @click="findDuplicates"
@@ -28,7 +27,6 @@
         {{ loading ? '查重中...' : '查找重复图片' }}
       </button>
     </div>
-    <ProgressBar :progress="buildProgress" :is-visible="showProgressBar" />
     <MessageDisplay 
       v-if="message"
       :message="message"
@@ -43,22 +41,19 @@
 
 <script setup>
 import { ref } from 'vue'
-import { duplicateApi, indexApi } from '../../services/api.js'
+import { duplicateApi } from '../../services/api.js'
 import { useLoading } from '../../composables/useLoading.js'
 import DatasetManager from '../Common/DatasetManager.vue'
 import MessageDisplay from '../Common/MessageDisplay.vue'
 import DuplicateResults from './DuplicateResults.vue'
-import ProgressBar from '../Common/ProgressBar.vue'
 
 const { loading, message, startLoading, stopLoading } = useLoading()
 const messageType = ref('info')
 const singleDataset = ref([''])
 const threshold = ref(95)
 const duplicateGroups = ref([])
-const buildProgress = ref(0)
-const showProgressBar = ref(false)
 
-// 查重时自动构建索引（如未构建）并查重
+// 直接进行重复图片查找，不构建索引
 async function findDuplicates() {
   const datasetName = singleDataset.value[0]?.trim()
   if (!datasetName) {
@@ -66,31 +61,10 @@ async function findDuplicates() {
     messageType.value = 'warning'
     return
   }
-  startLoading('正在构建索引...')
+    startLoading('正在查重...')
   duplicateGroups.value = []
   messageType.value = 'info'
-  showProgressBar.value = true
-  buildProgress.value = 0
-  let progressUrl = ''
-  try {
-    // 先尝试构建索引（如已构建会直接返回完成）
-    const buildResp = await indexApi.buildIndex([datasetName], false)
-    if (buildResp.data.progress && buildResp.data.progress.length > 0) {
-      progressUrl = buildResp.data.progress[0].progress_file
-      await pollIndexProgress(progressUrl)
-    } else {
-      showProgressBar.value = false
-    }
-  } catch (e) {
-    showProgressBar.value = false
-    message.value = '索引构建失败，请重试'
-    messageType.value = 'error'
-    stopLoading()
-    return
-  }
-  showProgressBar.value = false
-  // 索引构建完成后查重
-  startLoading('正在查重...')
+  
   try {
     const resp = await duplicateApi.findDuplicates(datasetName, threshold.value)
     duplicateGroups.value = resp.data.groups || []
@@ -102,46 +76,20 @@ async function findDuplicates() {
       messageType.value = 'success'
     }
   } catch (error) {
-    message.value = '查重失败，请重试'
-    messageType.value = 'error'
+    if (error.response && error.response.status === 500) {
+      message.value = '索引文件不存在，请先构建索引'
+      messageType.value = 'error'
+    } else {
+      message.value = '查重失败，请重试'
+      messageType.value = 'error'
+    }
     console.error('Duplicate error:', error)
   } finally {
     stopLoading()
   }
 }
 
-async function pollIndexProgress(progressUrl) {
-  return new Promise((resolve, reject) => {
-    let lastProgress = 0
-    const timer = setInterval(async () => {
-      try {
-        const resp = await indexApi.getProgress(progressUrl)
-        if (typeof resp.data.progress === 'number') {
-          buildProgress.value = resp.data.progress
-          lastProgress = resp.data.progress
-        }
-        if (resp.data.status === 'done') {
-          clearInterval(timer)
-          buildProgress.value = 100
-          resolve()
-        } else if (resp.data.status === 'error') {
-          clearInterval(timer)
-          reject(new Error('索引构建失败'))
-        } else if (resp.data.status === 'pending' && lastProgress === 0) {
-          setTimeout(() => {
-            if (buildProgress.value === 0) {
-              clearInterval(timer)
-              reject(new Error('索引构建超时'))
-            }
-          }, 10000)
-        }
-      } catch (e) {
-        clearInterval(timer)
-        reject(e)
-      }
-    }, 1000)
-  })
-}
+
 </script>
 
 <style scoped>

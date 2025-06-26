@@ -81,6 +81,8 @@ export const duplicateApi = {
       index_id,
       threshold,
       deduplicate
+    }, {
+      timeout: 600000 // 10分钟超时
     })
   }
 }
