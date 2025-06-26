@@ -29,23 +29,6 @@
       </div>
     </div>
     
-    <div class="cropper-controls">
-      <button 
-        class="btn btn-secondary" 
-        @click="resetCrop"
-        :disabled="!showCropArea"
-      >
-        重置框选
-      </button>
-      <button 
-        class="btn btn-primary" 
-        @click="confirmCrop"
-        :disabled="!showCropArea"
-      >
-        确认框选
-      </button>
-    </div>
-    
     <!-- 框选后的预览 -->
     <div v-if="croppedImageUrl" class="cropped-preview">
       <h4>框选区域预览</h4>
@@ -212,43 +195,55 @@ function resetCrop() {
 async function confirmCrop() {
   if (!showCropArea.value) return
   
-  try {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    
-    canvas.width = cropData.value.width
-    canvas.height = cropData.value.height
-    
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    
-    img.onload = () => {
-      ctx.drawImage(
-        img,
-        cropData.value.x,
-        cropData.value.y,
-        cropData.value.width,
-        cropData.value.height,
-        0,
-        0,
-        cropData.value.width,
-        cropData.value.height
-      )
+  return new Promise((resolve, reject) => {
+    try {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
       
-      const croppedDataUrl = canvas.toDataURL('image/png')
-      croppedImageUrl.value = croppedDataUrl
+      canvas.width = cropData.value.width
+      canvas.height = cropData.value.height
       
-      // 将裁剪后的图片转换为 File 对象
-      canvas.toBlob((blob) => {
-        const file = new File([blob], 'cropped-image.png', { type: 'image/png' })
-        emit('cropped-image', file)
-      }, 'image/png')
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      
+      img.onload = () => {
+        try {
+          ctx.drawImage(
+            img,
+            cropData.value.x,
+            cropData.value.y,
+            cropData.value.width,
+            cropData.value.height,
+            0,
+            0,
+            cropData.value.width,
+            cropData.value.height
+          )
+          
+          const croppedDataUrl = canvas.toDataURL('image/png')
+          croppedImageUrl.value = croppedDataUrl
+          
+          // 将裁剪后的图片转换为 File 对象
+          canvas.toBlob((blob) => {
+            const file = new File([blob], 'cropped-image.png', { type: 'image/png' })
+            emit('cropped-image', file)
+            resolve(file)
+          }, 'image/png')
+        } catch (error) {
+          reject(error)
+        }
+      }
+      
+      img.onerror = () => {
+        reject(new Error('图片加载失败'))
+      }
+      
+      img.src = props.imageUrl
+    } catch (error) {
+      console.error('裁剪图片失败:', error)
+      reject(error)
     }
-    
-    img.src = props.imageUrl
-  } catch (error) {
-    console.error('裁剪图片失败:', error)
-  }
+  })
 }
 
 // 暴露方法
@@ -339,46 +334,6 @@ defineExpose({
 .handle-se {
   bottom: -4px;
   right: -4px;
-}
-
-.cropper-controls {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin-top: 1rem;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #42b983;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #369870;
-}
-
-.btn-secondary {
-  background: #f0f0f0;
-  color: #666;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #e0e0e0;
 }
 
 .cropped-preview {

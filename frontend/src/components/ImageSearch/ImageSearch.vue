@@ -27,22 +27,41 @@
         </div>
       </div>
       
-      <!-- 图片框选功能 -->
-      <div v-if="previewUrl" class="crop-section">
-        <h3 class="crop-title">框选要搜索的区域（可选）</h3>
-        <ImageCropper
-          :image-url="previewUrl"
-          @crop-change="onCropChange"
-          @cropped-image="onCroppedImage"
-          ref="imageCropperRef"
-        />
-        <div class="crop-info">
-          <p v-if="!hasCroppedImage" class="crop-hint">
-            🖱️ 在图片上拖拽鼠标来框选要搜索的区域，或直接搜索整张图片
-          </p>
-          <p v-else class="crop-success">
-            ✅ 已框选区域，将使用框选后的图片进行搜索
-          </p>
+      <!-- 框选功能按钮区域 -->
+      <div v-if="previewUrl" class="crop-button-section">
+        <div class="crop-status">
+          <div v-if="!hasCroppedImage" class="status-item">
+            <span class="status-icon">📷</span>
+            <span class="status-text">当前将搜索整张图片</span>
+          </div>
+          <div v-else class="status-item success">
+            <span class="status-icon">✅</span>
+            <span class="status-text">已框选区域，将搜索框选部分</span>
+          </div>
+        </div>
+        
+        <div class="crop-actions">
+          <button 
+            class="btn btn-crop" 
+            @click="openCropModal"
+            :disabled="loading"
+          >
+            {{ hasCroppedImage ? '重新框选区域' : '框选搜索区域' }}
+          </button>
+          <button 
+            v-if="hasCroppedImage"
+            class="btn btn-reset" 
+            @click="resetCrop"
+            :disabled="loading"
+          >
+            清除框选
+          </button>
+        </div>
+        
+        <!-- 框选结果预览 -->
+        <div v-if="hasCroppedImage && croppedImagePreview" class="crop-preview">
+          <h4>框选区域预览</h4>
+          <img :src="croppedImagePreview" class="preview-cropped-image" />
         </div>
       </div>
       
@@ -81,16 +100,18 @@
         >
           {{ loading ? '检索中...' : (hasCroppedImage ? '搜索框选区域' : '搜索整张图片') }}
         </button>
-        <button 
-          v-if="hasCroppedImage"
-          class="btn btn-reset" 
-          @click="resetCrop"
-          :disabled="loading"
-        >
-          重置框选
-        </button>
       </div>
     </div>
+    
+    <!-- 框选弹窗 -->
+    <CropperModal
+      :visible="showCropModal"
+      :image-url="previewUrl"
+      @close="closeCropModal"
+      @confirm="onCropConfirm"
+      ref="cropperModalRef"
+    />
+    
     <MessageDisplay 
       v-if="message"
       :message="message"
@@ -112,6 +133,7 @@ import { useLoading } from '../../composables/useLoading.js'
 import DatasetManager from '../Common/DatasetManager.vue'
 import ImageCanvas from '../Common/ImageCanvas.vue'
 import ImageCropper from '../Common/ImageCropper.vue'
+import CropperModal from '../Common/CropperModal.vue'
 import MessageDisplay from '../Common/MessageDisplay.vue'
 import SearchResults from './SearchResults.vue'
 import ProgressBar from '../Common/ProgressBar.vue'
@@ -136,6 +158,7 @@ const { loading, message, startLoading, stopLoading } = useLoading()
 const fileInputRef = ref(null)
 const imageCanvasRef = ref(null)
 const imageCropperRef = ref(null)
+const cropperModalRef = ref(null)
 
 // 搜索结果
 const results = ref([])
@@ -152,7 +175,9 @@ const topKErrorMessage = ref('')
 // 框选相关状态
 const hasCroppedImage = ref(false)
 const croppedImageFile = ref(null)
+const croppedImagePreview = ref('')
 const cropArea = ref({ x: 0, y: 0, w: 0, h: 0 })
+const showCropModal = ref(false)
 
 /**
  * 验证检索数量
@@ -208,13 +233,36 @@ function onCropChange(cropData) {
 }
 
 /**
- * 处理框选后的图片
+ * 打开框选弹窗
  */
-function onCroppedImage(file) {
-  croppedImageFile.value = file
+function openCropModal() {
+  showCropModal.value = true
+}
+
+/**
+ * 关闭框选弹窗
+ */
+function closeCropModal() {
+  showCropModal.value = false
+}
+
+/**
+ * 确认框选结果
+ */
+function onCropConfirm(data) {
   hasCroppedImage.value = true
+  cropArea.value = data.cropData
+  croppedImageFile.value = data.croppedFile
+  
+  // 创建预览URL
+  if (data.croppedFile) {
+    croppedImagePreview.value = URL.createObjectURL(data.croppedFile)
+  }
+  
   message.value = '已框选区域，将使用框选后的图片进行搜索'
   messageType.value = 'success'
+  
+  showCropModal.value = false
 }
 
 /**
@@ -223,7 +271,13 @@ function onCroppedImage(file) {
 function resetCropState() {
   hasCroppedImage.value = false
   croppedImageFile.value = null
+  croppedImagePreview.value = ''
   cropArea.value = { x: 0, y: 0, w: 0, h: 0 }
+  
+  // 清理预览URL
+  if (croppedImagePreview.value && croppedImagePreview.value.startsWith('blob:')) {
+    URL.revokeObjectURL(croppedImagePreview.value)
+  }
 }
 
 /**
@@ -231,8 +285,8 @@ function resetCropState() {
  */
 function resetCrop() {
   resetCropState()
-  if (imageCropperRef.value) {
-    imageCropperRef.value.resetCrop()
+  if (cropperModalRef.value) {
+    cropperModalRef.value.resetCrop()
   }
   message.value = '已重置框选，将搜索整张图片'
   messageType.value = 'info'
@@ -474,48 +528,97 @@ function triggerFileInput() {
   transform: none;
 }
 
-/* 新增的框选功能样式 */
-.crop-section {
+/* 新增的框选按钮区域样式 */
+.crop-button-section {
   width: 100%;
-  margin: 2rem 0;
+  margin: 1.5rem 0;
   padding: 1.5rem;
   background: #f8fafc;
   border-radius: 12px;
   border: 1px solid #e0e0e0;
 }
 
-.crop-title {
-  font-size: 1.2rem;
-  color: #333;
+.crop-status {
   margin-bottom: 1rem;
-  font-weight: 600;
-  text-align: center;
 }
 
-.crop-info {
-  margin-top: 1rem;
-  text-align: center;
-}
-
-.crop-hint {
-  color: #666;
-  font-size: 0.95rem;
-  margin: 0;
-  padding: 0.5rem;
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
   background: #fff;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
 }
 
-.crop-success {
-  color: #42b983;
-  font-size: 0.95rem;
-  margin: 0;
-  padding: 0.5rem;
+.status-item.success {
   background: #f0f9ff;
-  border-radius: 8px;
-  border: 1px solid #42b983;
+  border-color: #42b983;
+}
+
+.status-icon {
+  font-size: 1.2rem;
+}
+
+.status-text {
+  color: #555;
+  font-size: 0.95rem;
   font-weight: 500;
+}
+
+.status-item.success .status-text {
+  color: #42b983;
+}
+
+.crop-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.btn-crop {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-crop:hover:not(:disabled) {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.crop-preview {
+  margin-top: 1rem;
+  text-align: center;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.crop-preview h4 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.preview-cropped-image {
+  max-width: 150px;
+  max-height: 150px;
+  border: 2px solid #42b983;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.2);
 }
 
 /* 检索配置样式 */
@@ -579,9 +682,18 @@ function triggerFileInput() {
 }
 
 @media (max-width: 768px) {
-  .crop-section {
+  .crop-button-section {
     padding: 1rem;
     margin: 1rem 0;
+  }
+  
+  .crop-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .btn-crop {
+    width: 100%;
   }
   
   .search-buttons {
