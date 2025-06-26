@@ -19,27 +19,54 @@
         <div class="result-info">
           <div class="result-filename">{{ item.fname }}</div>
           
-          <div class="result-meta">
-            <span class="result-id">编号: {{ item.idx }}</span>
-            <span v-if="item.dataset" class="result-dataset">
-              [{{ item.dataset }}]
-            </span>
-          </div>
-          
+          <!-- 相似度信息 - 优先显示 -->
           <div v-if="item.similarity !== undefined" class="result-similarity">
-            相似度: {{ item.similarity.toFixed(2) }}%
+            <div class="similarity-header">
+              <span class="similarity-label">相似度</span>
+              <span class="similarity-value">{{ item.similarity.toFixed(1) }}%</span>
+            </div>
+            <div class="similarity-progress">
+              <div 
+                class="similarity-progress-bar" 
+                :style="{ width: item.similarity + '%' }"
+                :key="`similarity-${animationKey}-${item.idx}-${index}`"
+              ></div>
+            </div>
           </div>
           
+          <!-- 基础信息 -->
+          <div class="result-meta">
+            <div class="meta-item">
+              <span class="meta-label">编号:</span>
+              <span class="meta-value">{{ item.idx }}</span>
+            </div>
+            <div v-if="item.dataset && item.dataset.trim()" class="meta-item">
+              <span class="meta-label">数据集:</span>
+              <span class="meta-value dataset-tag">{{ item.dataset }}</span>
+            </div>
+          </div>
+          
+          <!-- 详细描述信息 -->
           <div 
-            v-if="item.description && Object.keys(item.description).length" 
+            v-if="hasValidDescription(item.description)" 
             class="result-description"
           >
+            <div v-if="item.description.type && item.description.type.trim()" class="desc-item type-item">
+              <span class="desc-label">类型:</span>
+              <span class="desc-value">{{ item.description.type }}</span>
+            </div>
+            <div v-if="item.description.desc && item.description.desc.trim()" class="desc-item desc-item-main">
+              <span class="desc-label">描述:</span>
+              <span class="desc-value">{{ item.description.desc }}</span>
+            </div>
+            <!-- 其他动态字段 -->
             <div 
-              v-for="(val, key) in item.description" 
+              v-for="(val, key) in getOtherFields(item.description)" 
               :key="key" 
               class="desc-item"
             >
-              <strong>{{ key }}:</strong> {{ val }}
+              <span class="desc-label">{{ formatFieldName(key) }}:</span>
+              <span class="desc-value">{{ val }}</span>
             </div>
           </div>
         </div>
@@ -49,12 +76,68 @@
 </template>
 
 <script setup>
-defineProps({
+import { ref, watch, nextTick } from 'vue'
+
+const props = defineProps({
   results: {
     type: Array,
     required: true
   }
 })
+
+// 动画触发键，用于强制重新触发动画
+const animationKey = ref(0)
+
+// 监听结果变化，触发动画重新播放
+watch(() => props.results, () => {
+  animationKey.value++
+}, { deep: true })
+
+// 检查描述信息是否有有效内容
+function hasValidDescription(description) {
+  if (!description || typeof description !== 'object') {
+    return false
+  }
+  
+  // 检查是否有非空字符串值
+  return Object.values(description).some(value => 
+    value && typeof value === 'string' && value.trim().length > 0
+  )
+}
+
+// 获取除了 type 和 desc 之外的其他字段
+function getOtherFields(description) {
+  if (!description || typeof description !== 'object') {
+    return {}
+  }
+  
+  const { type, desc, ...others } = description
+  
+  // 只返回有效的非空字段
+  const validOthers = {}
+  for (const [key, value] of Object.entries(others)) {
+    if (value && typeof value === 'string' && value.trim()) {
+      validOthers[key] = value
+    }
+  }
+  
+  return validOthers
+}
+
+// 格式化字段名称显示
+function formatFieldName(fieldKey) {
+  const fieldNameMap = {
+    'size': '尺寸',
+    'format': '格式',
+    'category': '分类',
+    'tags': '标签',
+    'date': '日期',
+    'author': '作者',
+    'source': '来源'
+  }
+  
+  return fieldNameMap[fieldKey] || fieldKey
+}
 
 function handleImageError(event) {
   event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPgogIDx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+5Zu+54mH5Yqg6L295aSx6LSlPC90ZXh0Pgo8L3N2Zz4K'
@@ -119,48 +202,160 @@ function handleImageError(event) {
   font-size: 1rem;
   font-weight: 600;
   color: #333;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   word-break: break-all;
+  line-height: 1.3;
+}
+
+.result-similarity {
+  margin-bottom: 0.75rem;
+  padding: 0.8rem;
+  background: #f8fbff;
+  border: 1px solid #e3f2fd;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.similarity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.similarity-label {
+  color: #2196f3;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.similarity-value {
+  color: #1976d2;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.similarity-progress {
+  width: 100%;
+  height: 8px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.similarity-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4fc3f7 0%, #29b6f6 50%, #03a9f4 100%);
+  border-radius: 4px;
+  transition: width 1.5s ease-out;
+  animation: progressSlide 1.5s ease-out;
+  position: relative;
+}
+
+.similarity-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes progressSlide {
+  0% {
+    width: 0%;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .result-meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
 }
 
-.result-id {
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.meta-label {
   color: #666;
-}
-
-.result-dataset {
-  color: #42b983;
   font-weight: 500;
+  min-width: fit-content;
 }
 
-.result-similarity {
-  color: #2d8cf0;
+.meta-value {
+  color: #333;
   font-weight: 600;
-  font-size: 0.95rem;
-  margin-bottom: 0.5rem;
+}
+
+.dataset-tag {
+  background: #e8f5e8;
+  color: #42b883;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .result-description {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
   border-top: 1px solid #e9ecef;
 }
 
 .desc-item {
-  margin-bottom: 0.3rem;
-  font-size: 0.9rem;
-  color: #555;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
-.desc-item strong {
-  color: #333;
+.desc-item:last-child {
+  margin-bottom: 0;
+}
+
+.desc-label {
+  color: #666;
+  font-weight: 600;
+  min-width: fit-content;
+  font-size: 0.8rem;
+}
+
+.desc-value {
+  color: #444;
+  flex: 1;
+}
+
+.type-item .desc-value {
+  background: #f0f8ff;
+  color: #2d8cf0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.desc-item-main .desc-value {
+  font-style: italic;
+  color: #555;
 }
 
 @media (max-width: 768px) {
