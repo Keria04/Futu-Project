@@ -1,12 +1,13 @@
 <template>
-  <div class="duplicate-results">
+  <div class="duplicate-results" :class="{ 'results-show': groups.length > 0 }">
     <h3 class="results-title">重复图片组 ({{ groups.length }})</h3>
     
     <div class="groups-container">
       <div 
         v-for="(group, index) in groups" 
-        :key="index"
+        :key="`group-${animationKey}-${index}`"
         class="duplicate-group"
+        :style="{ 'animation-delay': (index * 0.15) + 's' }"
       >
         <div class="group-header">
           <h4 class="group-title">重复组 {{ index + 1 }}</h4>
@@ -36,7 +37,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   groups: {
@@ -44,6 +45,14 @@ const props = defineProps({
     required: true
   }
 })
+
+// 动画触发键，用于强制重新触发动画
+const animationKey = ref(0)
+
+// 监听结果变化，触发动画重新播放
+watch(() => props.groups, () => {
+  animationKey.value++
+}, { deep: true })
 
 // 计算重复图片总数
 const totalDuplicateImages = computed(() => {
@@ -54,6 +63,18 @@ const totalDuplicateImages = computed(() => {
 <style scoped>
 .duplicate-results {
   margin-top: 2rem;
+  opacity: 0;
+  transform: translateY(-30px);
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.duplicate-results.results-show {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: none;
+  overflow: visible;
 }
 
 .results-title {
@@ -61,6 +82,20 @@ const totalDuplicateImages = computed(() => {
   color: #333;
   margin-bottom: 1.5rem;
   font-weight: 600;
+  opacity: 0;
+  transform: translateX(-20px);
+  animation: titleSlideIn 0.5s ease-out 0.2s forwards;
+}
+
+@keyframes titleSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .groups-container {
@@ -75,11 +110,30 @@ const totalDuplicateImages = computed(() => {
   border: 1px solid #ffcccb;
   border-radius: 8px;
   padding: 1rem;
-  transition: box-shadow 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  transform: translateY(40px) scale(0.95);
+  animation: fadeInUpGroup 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes fadeInUpGroup {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  60% {
+    opacity: 0.8;
+    transform: translateY(-5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .duplicate-group:hover {
-  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.2);
 }
 
 .group-header {
